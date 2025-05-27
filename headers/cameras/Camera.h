@@ -70,10 +70,10 @@ public:
 
     // 调试输出
     void debugPrint() const {
-        std::cout << "Position: (" << m_position.x << ", " << m_position.y << ", " << m_position.z << ")\n";
-        std::cout << "Front: (" << m_front.x << ", " << m_front.y << ", " << m_front.z << ")\n";
-        std::cout << "Yaw: " << m_yaw << ", Pitch: " << m_pitch << "\n";
-        std::cout << "FOV: " << m_fov << "\n";
+        std::cout << "Position: (" << m_position.x << ", " << m_position.y << ", " << m_position.z << ")\n"<<std::endl;
+        std::cout << "Front: (" << m_front.x << ", " << m_front.y << ", " << m_front.z << ")\n"<<std::endl;
+        std::cout << "Yaw: " << m_yaw << ", Pitch: " << m_pitch << "\n"<<std::endl;
+        std::cout << "FOV: " << m_fov << "\n"<<std::endl;
     }
 
     //设置各个属性

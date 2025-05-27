@@ -23,10 +23,28 @@ MainWindow::MainWindow(QWidget *parent)
     m_model->setHorizontalHeaderLabels({"实例管理"});
     m_itemObject = new QStandardItem("物体");
     m_model->appendRow(m_itemObject);
+    m_itemObject->setFlags(m_itemObject->flags() & ~Qt::ItemIsEditable & ~Qt::ItemIsSelectable);
     m_itemLight = new QStandardItem("灯光");
     m_model->appendRow(m_itemLight);
     m_itemCamera = new QStandardItem("摄像机");
     m_model->appendRow(m_itemCamera);
+
+   // m_uitransform = new UiTransform(ui->tabWidget_attribute->widget(1));
+    m_uitransform = new UiTransform(ui->scrollAreaTransWidget);
+    ui->scrollArea_transform->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->scrollArea_transform->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    //tabWidget->cameraWidget
+    m_uicamera = new UiCamera(ui->scrollAreaCameraWidget);
+    ui->scrollArea_camera->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->scrollArea_camera->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    //Material
+    m_uimaterial = new UiMaterial(ui->scrollAreaMaterialWidget);
+    ui->scrollArea_material->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->scrollArea_material->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    //light
+    m_uilight = new UiLight(ui->scrollAreaLightWidget);
+    ui->scrollArea_light->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->scrollArea_light->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     m_fileDialog = make_unique<QFileDialog>(new QFileDialog);
     connect(m_model, &MyStandardItemModel::itemTextChanged, this, &MainWindow::slotChangeItemName);
@@ -37,10 +55,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionRenderImage, &QAction::triggered, this, &MainWindow::slotRenderImage);
     ui->treeView_instance->setSelectionMode(QAbstractItemView::ExtendedSelection);
     connect(ui->btn_createObject, &QPushButton::clicked, this, &MainWindow::slotCreateObject);
-    connect(ui->btn_basiccolor, &QPushButton::clicked, this, &MainWindow::slotPickColor);
+    connect(m_uimaterial->getBtnBasicColor(), &QPushButton::clicked, this, &MainWindow::slotPickColor);
     connect(ui->btn_createLight, &QPushButton::clicked, this, &MainWindow::slotCreateLight);
     connect(ui->btn_createCamera, &QPushButton::clicked, this, &MainWindow::slotCreateCamera);
-    connect(ui->btn_lightColor, &QPushButton::clicked, this, &MainWindow::slotPickColor);
+    connect(m_uilight->getBtnLightColor(), &QPushButton::clicked, this, &MainWindow::slotPickColor);
     connect(ui->btn_switchCamera, &QPushButton::clicked, this, &MainWindow::slotSwitchCamera);
     connect(ui->treeView_instance->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::slotSelectionChanged);
     //resize(1080,607);
@@ -50,7 +68,42 @@ MainWindow::MainWindow(QWidget *parent)
     //删除贴图
     connect(ui->btn_RemoveUVTexture, & QPushButton::clicked,this, &MainWindow::slotRemoveUVTexture);
 
-    std::cout << "OpenCV Version: " << CV_VERSION << std::endl;
+    /*The following connections are about tabWidget*/
+    connect(m_uitransform->getLineEditTranslationX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditTranslationY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditTranslationZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditRotationX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditRotationY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditRotationZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditScaleX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditScaleY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+    connect(m_uitransform->getLineEditScaleZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
+
+    connect(m_uicamera->getCameraType(), &QComboBox::currentIndexChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditCameraFOV(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditCameraYaw(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditCameraPitch(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditClipNear(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditClipFar(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+
+    connect(m_uimaterial->getLineEditMetallic(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectMaterial);
+    connect(m_uimaterial->getLineEditRoughness(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectMaterial);
+    connect(m_uimaterial->getLineEditIOR(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectMaterial);
+
+    //connect light change
+    connect(m_uilight->getLineEditLightIntensity(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightLocateX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightLocateY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightLocateZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightDirectionX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightDirectionY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightDirectionZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightQuadratic(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightLiner(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightConstant(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightInnerConeAngle(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    connect(m_uilight->getLineEditLightOuterConeAngle(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeLightSetting);
+    //std::cout << "OpenCV Version: " << CV_VERSION << std::endl;
 
     // 检查是否支持HDR和EXR,目前只支持hdr
     // std::vector<std::string> extensions = {"D:/hdr/snowy_field_4k.hdr", "D:/hdr/kloppenheim_06_puresky_4k.exr"};
@@ -59,6 +112,7 @@ MainWindow::MainWindow(QWidget *parent)
     //     std::cout << "Support for " << ext << ": " << (supported ? "Yes" : "No") << std::endl;
     // }
     Logger::GetInstance().run();
+    setdisableAttributeWidget(ui->tabWidget_attribute, true);
 }
 
 MainWindow::~MainWindow()
@@ -195,6 +249,7 @@ void MainWindow::slotSelectionChanged(const QItemSelection &selected, const QIte
     QModelIndexList newlySelectedIndexes = selected.indexes();
     if (!newlySelectedIndexes.isEmpty())
     {
+        setdisableAttributeWidget(ui->tabWidget_attribute, false);
         QModelIndex currentIndex = ui->treeView_instance->currentIndex();
         if (currentIndex.isValid())
         {
@@ -227,6 +282,10 @@ void MainWindow::slotSelectionChanged(const QItemSelection &selected, const QIte
         {
             qDebug() << "No focus item.";
         }
+    }
+    else
+    {//when select none, The tabWidget cannot be edited.
+        setdisableAttributeWidget(ui->tabWidget_attribute, true);
     }
 }
 
@@ -290,6 +349,120 @@ void MainWindow::slotRemoveUVTexture()
     emit sigRemoveUVTextures(currentItemText, textureType);
 }
 
+void MainWindow::slotCameraAttributeChanged()
+{
+    //进行矩阵变换，材质添加等，需要先在实例管理中选定某个条目才更新
+    vector<string> selectedStrVec = getSelectedVector();
+    if (selectedStrVec.size() == 0)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
+        return ;
+    }
+    else if (selectedStrVec.size() > 1)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
+        return ;
+    }
+    //摄像机的属性设置
+    int cameratype = m_uicamera->getCameraType()->currentIndex();
+    float fov = static_cast<float>(m_uicamera->getLineEditCameraFOV()->getValue());
+    float yaw = static_cast<float>(m_uicamera->getLineEditCameraYaw()->getValue());
+    float pitch = static_cast<float>(m_uicamera->getLineEditCameraPitch()->getValue());
+    float clipNear = static_cast<float>(m_uicamera->getLineEditClipNear()->getValue());
+    float clipFar = static_cast<float>(m_uicamera->getLineEditClipFar()->getValue());
+    glm::vec3 position;
+    position.x = static_cast<float>(m_uitransform->getLineEditRotationX()->getValue());
+    position.y = static_cast<float>(m_uitransform->getLineEditRotationY()->getValue());
+    position.z = static_cast<float>(m_uitransform->getLineEditRotationZ()->getValue());
+    //摄像机的旋转和缩放暂时不加
+    emit sigSetCameraAttribute(selectedStrVec, cameratype, fov, yaw, pitch, clipNear, clipFar, position);
+}
+
+void MainWindow::slotChangeObjectModel()
+{
+    vector<string> selectedStrVec = getSelectedVector();
+    if (selectedStrVec.size() == 0)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
+        return ;
+    }
+    else if (selectedStrVec.size() > 1)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
+        return ;
+    }
+    //模型矩阵变换
+    //先做下判断，如果输入不是数字，则弹框重新输入
+
+    //根据输入设置模型矩阵，传递给glwidget设置各个个物体的模型矩阵。
+    float translationX = static_cast<float>(m_uitransform->getLineEditTranslationX()->getValue());
+    float translationY = static_cast<float>(m_uitransform->getLineEditTranslationY()->getValue());
+    float translationZ = static_cast<float>(m_uitransform->getLineEditTranslationZ()->getValue());
+    glm::vec3 translationXYZ(translationX, translationY, translationZ);
+
+    float rotationX = static_cast<float>(m_uitransform->getLineEditRotationX()->getValue());
+    float rotationY = static_cast<float>(m_uitransform->getLineEditRotationY()->getValue());
+    float rotationZ = static_cast<float>(m_uitransform->getLineEditRotationZ()->getValue());
+    glm::vec3 rotationXYZ(rotationX, rotationY, rotationZ);
+
+    float scaleX = static_cast<float>(m_uitransform->getLineEditScaleX()->getValue());
+    float scaleY = static_cast<float>(m_uitransform->getLineEditScaleY()->getValue());
+    float scaleZ = static_cast<float>(m_uitransform->getLineEditScaleZ()->getValue());
+    glm::vec3 scaleXYZ(scaleX, scaleY, scaleZ);
+
+    emit sigSetModel(selectedStrVec, translationXYZ, rotationXYZ, scaleXYZ);
+}
+
+void MainWindow::slotChangeObjectMaterial()
+{
+    vector<string> selectedStrVec = getSelectedVector();
+    if (selectedStrVec.size() == 0)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
+        return ;
+    }
+    else if (selectedStrVec.size() > 1)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
+        return ;
+    }
+    //模型矩阵变换
+    //先做下判断，如果输入不是数字，则弹框重新输入
+
+    float metallic = static_cast<float>(m_uimaterial->getLineEditMetallic()->getValue());
+    float roughness = static_cast<float>(m_uimaterial->getLineEditRoughness()->getValue());
+    float ior = static_cast<float>(m_uimaterial->getLineEditIOR()->getValue());
+    emit sigSetMaterialValue(selectedStrVec, metallic, roughness, ior);
+}
+
+void MainWindow::slotChangeLightSetting()
+{
+    vector<string> selectedStrVec = getSelectedVector();
+    if (selectedStrVec.size() == 0)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
+        return ;
+    }
+    else if (selectedStrVec.size() > 1)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
+        return ;
+    }
+    //模型矩阵变换
+
+    //接下来是灯光的属性设置，设置一个shaderLight结构体传递给GLWidget
+    ShaderLight sl;
+    sl.intensity = m_uilight->getLineEditLightIntensity()->getValue();
+    sl.position = glm::vec4(m_uilight->getLineEditLightLocateX()->getValue(),m_uilight->getLineEditLightLocateY()->getValue(),m_uilight->getLineEditLightLocateZ()->getValue(), 1.0f);
+    sl.quadratic = m_uilight->getLineEditLightQuadratic()->getValue();
+    sl.linear = m_uilight->getLineEditLightLiner()->getValue();
+    sl.constant = m_uilight->getLineEditLightConstant()->getValue();
+    sl.innerAngle = m_uilight->getLineEditLightInnerConeAngle()->getValue();
+    sl.outerAngle = m_uilight->getLineEditLightOuterConeAngle()->getValue();
+    sl.direction = glm::vec4(m_uilight->getLineEditLightDirectionX()->getValue(), m_uilight->getLineEditLightDirectionY()->getValue(),m_uilight->getLineEditLightDirectionZ()->getValue(), 1.0f);
+    emit sigSetLightAttribute(selectedStrVec, sl);
+}
+
 void MainWindow::resetObjectId()
 {
     m_objectId = 1;
@@ -308,22 +481,22 @@ void MainWindow::showObjectInfo(Object *ptr)
     //获取物体信息显示到属性栏中
     //主要是物体属性和材质属性
     glm::vec3 position = ptr->getPosition();
-    ui->lineEdit_translationX->setText(QString::number(position.x));
-    ui->lineEdit_translationY->setText(QString::number(position.y));
-    ui->lineEdit_translationZ->setText(QString::number(position.z));
+    m_uitransform->getLineEditTranslationX()->setValue(position.x);
+    m_uitransform->getLineEditTranslationY()->setValue(position.y);
+    m_uitransform->getLineEditTranslationZ()->setValue(position.z);
     glm::vec3 rotation = ptr->getRotation();
-    ui->lineEdit_rotationX->setText(QString::number(rotation.x));
-    ui->lineEdit_rotationY->setText(QString::number(rotation.y));
-    ui->lineEdit_rotationZ->setText(QString::number(rotation.z));
+    m_uitransform->getLineEditRotationX()->setValue(rotation.x);
+    m_uitransform->getLineEditRotationY()->setValue(rotation.y);
+    m_uitransform->getLineEditRotationZ()->setValue(rotation.z);
     glm::vec3 scale = ptr->getScale();
-    ui->lineEdit_scaleX->setText(QString::number(scale.x));
-    ui->lineEdit_scaleY->setText(QString::number(scale.y));
-    ui->lineEdit_scaleZ->setText(QString::number(scale.z));
+    m_uitransform->getLineEditScaleX()->setValue(scale.x);
+    m_uitransform->getLineEditScaleY()->setValue(scale.y);
+    m_uitransform->getLineEditScaleZ()->setValue(scale.z);
 
     vector<float> texture = ptr->getMaterialValue();
-    ui->lineEdit_metallic->setText(QString::number(texture[0]));
-    ui->lineEdit_roughness->setText(QString::number(texture[1]));
-    ui->lineEdit_ior->setText(QString::number(texture[2]));
+    m_uimaterial->getLineEditMetallic()->setValue(texture[0]);
+    m_uimaterial->getLineEditRoughness()->setValue(texture[1]);
+    m_uimaterial->getLineEditIOR()->setValue(texture[2]);
 }
 
 void MainWindow::showLightInfo(Light *ptr)
@@ -350,37 +523,37 @@ void MainWindow::showLightInfo(Light *ptr)
     {
         cout<<"unknown light type"<<endl;
     }
-    ui->lineEdit_lightLocateX->setText(QString::number(sl.position.x));
-    ui->lineEdit_lightLocateY->setText(QString::number(sl.position.y));
-    ui->lineEdit_lightLocateZ->setText(QString::number(sl.position.z));
+    m_uilight->getLineEditLightLocateX()->setValue(sl.position.x);
+    m_uilight->getLineEditLightLocateY()->setValue(sl.position.y);
+    m_uilight->getLineEditLightLocateZ()->setValue(sl.position.z);
 
-    ui->lineEdit_lightIntensity->setText(QString::number(sl.intensity));
+    m_uilight->getLineEditLightIntensity()->setValue(sl.intensity);
 
-    ui->lineEdit_lightDirectorX->setText(QString::number(sl.direction.x));
-    ui->lineEdit_lightDirectorY->setText(QString::number(sl.direction.y));
-    ui->lineEdit_lightDirectorZ->setText(QString::number(sl.direction.z));
+    m_uilight->getLineEditLightDirectionX()->setValue(sl.direction.x);
+    m_uilight->getLineEditLightDirectionY()->setValue(sl.direction.y);
+    m_uilight->getLineEditLightDirectionZ()->setValue(sl.direction.z);
 
-    ui->lineEdit_lightInnerConeAngle->setText(QString::number(sl.innerAngle));
-    ui->lineEdit_lightOuterConeAngle->setText(QString::number(sl.outerAngle));
+    m_uilight->getLineEditLightInnerConeAngle()->setValue(sl.innerAngle);
+    m_uilight->getLineEditLightOuterConeAngle()->setValue(sl.outerAngle);
     //点光源和聚光灯的衰减参数等，
-    ui->lineEdit_quadratic->setText(QString::number(sl.quadratic));
-    ui->lineEdit_liner->setText(QString::number(sl.linear));
-    ui->lineEdit_constant->setText(QString::number(sl.constant));
+    m_uilight->getLineEditLightQuadratic()->setValue(sl.quadratic);
+    m_uilight->getLineEditLightLiner()->setValue(sl.linear);
+    m_uilight->getLineEditLightConstant()->setValue(sl.constant);
 }
 
 void MainWindow::showCameraInfo(Camera *ptr)
 {
     //获取摄像机信息显示到属性栏中
-    ui->combo_cameraType->setCurrentIndex(ptr->getIsUseOrthographic());
-    ui->lineEdit_cameraFOV->setText(QString::number(ptr->getFOV()));
-    ui->lineEdit_cameraYaw->setText(QString::number(ptr->getYaw()));
-    ui->lineEdit_cameraPitch->setText(QString::number(ptr->getPitch()));
-    ui->lineEdit_clipNear->setText(QString::number(ptr->getNearClip()));
-    ui->lineEdit_clipFar->setText(QString::number(ptr->getFarClip()));
+    m_uicamera->getCameraType()->setCurrentIndex(ptr->getIsUseOrthographic());
+    m_uicamera->getLineEditCameraFOV()->setValue(ptr->getFOV());
+    m_uicamera->getLineEditCameraYaw()->setValue(ptr->getYaw());
+    m_uicamera->getLineEditCameraPitch()->setValue(ptr->getPitch());
+    m_uicamera->getLineEditClipNear()->setValue(ptr->getNearClip());
+    m_uicamera->getLineEditClipFar()->setValue(ptr->getFarClip());
 
-    ui->lineEdit_translationX->setText(QString::number(ptr->getCameraPosition().x));
-    ui->lineEdit_translationY->setText(QString::number(ptr->getCameraPosition().y));
-    ui->lineEdit_translationZ->setText(QString::number(ptr->getCameraPosition().z));
+    m_uitransform->getLineEditTranslationX()->setValue(ptr->getCameraPosition().x);
+    m_uitransform->getLineEditTranslationY()->setValue(ptr->getCameraPosition().y);
+    m_uitransform->getLineEditTranslationZ()->setValue(ptr->getCameraPosition().z);
 }
 
 void MainWindow::slotChangeItemName(const QModelIndex &index, const QString &oldValue, const QString &newValue)
@@ -455,67 +628,28 @@ void MainWindow::keyReleaseEvent(QKeyEvent* ev)
     else if (ev->key() == Qt::Key_Return)
     {
         //进行矩阵变换，材质添加等，需要先在实例管理中选定某个条目才更新
-        vector<string> selectedStrVec = getSelectedVector();
-        if (selectedStrVec.size() == 0)
-        {
-            QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
-            return ;
-        }
-        else if (selectedStrVec.size() > 1)
-        {
-            QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
-            return ;
-        }
-        //模型矩阵变换
-        //先做下判断，如果输入不是数字，则弹框重新输入
+    }
+}
 
-        //根据输入设置模型矩阵，传递给glwidget设置各个个物体的模型矩阵。
-        float translationX = ui->lineEdit_translationX->text().toFloat();
-        float translationY = ui->lineEdit_translationY->text().toFloat();
-        float translationZ = ui->lineEdit_translationZ->text().toFloat();
-        glm::vec3 translationXYZ(translationX, translationY, translationZ);
+// 辅助函数：递归地启用或禁用所有子控件
+void MainWindow::setdisableAttributeWidget(QWidget* widget, bool disabled)
+{
+    QList<QLineEdit *> allLineEdits = widget->findChildren<QLineEdit *>();
 
-        float rotationX = ui->lineEdit_rotationX->text().toFloat();
-        float rotationY = ui->lineEdit_rotationY->text().toFloat();
-        float rotationZ = ui->lineEdit_rotationZ->text().toFloat();
-        glm::vec3 rotationXYZ(rotationX, rotationY, rotationZ);
+    for (QLineEdit *lineEdit : allLineEdits)
+    {
+        lineEdit->setDisabled(disabled);
+    }
+    QList<QPushButton*> allBtns = widget->findChildren<QPushButton *>();
 
-        float scaleX = ui->lineEdit_scaleX->text().toFloat();
-        float scaleY = ui->lineEdit_scaleY->text().toFloat();
-        float scaleZ = ui->lineEdit_scaleZ->text().toFloat();
-        glm::vec3 scaleXYZ(scaleX, scaleY, scaleZ);
+    for (QPushButton *btn : allBtns)
+    {
+        btn->setDisabled(disabled);
+    }
+    QList<QComboBox*> allboxs = widget->findChildren<QComboBox *>();
 
-        emit sigSetModel(selectedStrVec, translationXYZ, rotationXYZ, scaleXYZ);
-
-        float metallic = ui->lineEdit_metallic->text().toFloat();
-        float roughness = ui->lineEdit_roughness->text().toFloat();
-        float ior = ui->lineEdit_ior->text().toFloat();
-        emit sigSetMaterialValue(selectedStrVec, metallic, roughness, ior);
-
-        //接下来是灯光的属性设置，设置一个shaderLight结构体传递给GLWidget
-        ShaderLight sl;
-        sl.intensity = ui->lineEdit_lightIntensity->text().toFloat();
-        sl.position = glm::vec4(ui->lineEdit_lightLocateX->text().toFloat(),ui->lineEdit_lightLocateY->text().toFloat(),ui->lineEdit_lightLocateZ->text().toFloat(), 1.0f);
-        sl.quadratic = ui->lineEdit_quadratic->text().toFloat();
-        sl.linear = ui->lineEdit_liner->text().toFloat();
-        sl.constant = ui->lineEdit_constant->text().toFloat();
-        sl.innerAngle = ui->lineEdit_lightInnerConeAngle->text().toFloat();
-        sl.outerAngle = ui->lineEdit_lightOuterConeAngle->text().toFloat();
-        sl.direction = glm::vec4(ui->lineEdit_lightDirectorX->text().toFloat(), ui->lineEdit_lightDirectorY->text().toFloat(),ui->lineEdit_lightDirectorZ->text().toFloat(), 1.0f);
-        emit sigSetLightAttribute(selectedStrVec, sl);
-        //摄像机的属性设置
-        int cameratype = ui->combo_cameraType->currentIndex();
-        float fov = ui->lineEdit_cameraFOV->text().toFloat();
-        float yaw = ui->lineEdit_cameraYaw->text().toFloat();
-        float pitch = ui->lineEdit_cameraPitch->text().toFloat();
-        float clipNear = ui->lineEdit_clipNear->text().toFloat();
-        float clipFar = ui->lineEdit_clipFar->text().toFloat();
-        glm::vec3 position;
-        position.x = ui->lineEdit_translationX->text().toFloat();
-        position.y = ui->lineEdit_translationY->text().toFloat();
-        position.z = ui->lineEdit_translationZ->text().toFloat();
-        //摄像机的旋转和缩放暂时不加
-        emit sigSetCameraAttribute(selectedStrVec, cameratype, fov, yaw, pitch, clipNear, clipFar, position);
-
+    for (QComboBox *box : allboxs)
+    {
+        box->setDisabled(disabled);
     }
 }

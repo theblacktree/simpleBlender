@@ -89,6 +89,22 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ./sources/logger.cpp
         headers/customUI/mystandarditemmodel.h
         sources/customUI/mystandarditemmodel.cpp
+        headers/uitransform.h
+        sources/uitransform.cpp
+        sources/uitransform.ui
+        headers/uicamera.h
+        sources/uicamera.cpp
+        sources/uicamera.ui
+        headers/customUI/myLineEdit.h
+        sources/customUI/myLineEdit.cpp
+        headers/uimaterial.h
+        sources/uimaterial.cpp
+        sources/uimaterial.ui
+        headers/uilight.h
+        sources/uilight.cpp
+        sources/uilight.ui
+
+
 
     )
 # Define target properties for Android with Qt 6 as:

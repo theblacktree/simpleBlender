@@ -20,6 +20,10 @@
 #include "glwidget.h"
 #include "renderimagewidget.h"
 #include "mystandarditemmodel.h"
+#include "uitransform.h"
+#include "uicamera.h"
+#include "uimaterial.h"
+#include "uilight.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -74,6 +78,15 @@ private:
      */
     void removeItems();
 
+    /*****************
+     * Function Name: setdisableAttributeWidget
+     * Function Description: This function called when you want to diable all the children objects
+     * on the widget.
+     * Function Parameters: widget:you want to control; disabled:true or false
+     * Function return : void
+     */
+    void setdisableAttributeWidget(QWidget *widget, bool disabled);
+
 private slots:
 
     void slotChangeItemName(const QModelIndex &index, const QString &oldValue, const QString &newValue);
@@ -97,6 +110,14 @@ private slots:
     void slotpassUVTextureInfo(const QString& s);
 
     void slotRemoveUVTexture();
+
+    void slotCameraAttributeChanged();
+
+    void slotChangeObjectModel();
+
+    void slotChangeObjectMaterial();
+    //change lightSetting
+    void slotChangeLightSetting();
 
 
 signals:
@@ -141,5 +162,11 @@ private:
     int m_lightId= 1;
     //摄像机唯一键
     int m_cameraId= 1;
+
+    //widget
+    UiTransform* m_uitransform;
+    UiCamera* m_uicamera;
+    UiMaterial* m_uimaterial;
+    UiLight* m_uilight;
 };
 #endif // MAINWINDOW_H

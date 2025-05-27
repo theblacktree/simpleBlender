@@ -1,22 +1,21 @@
-#ifndef MYSTANDARDITEMMODEL_H
-#define MYSTANDARDITEMMODEL_H
+#ifndef MYSTANDARDiTEMmODEL_H
+#define MYSTANDARDiTEMmODEL_H
+#include <QApplication>
+#include <QTreeView>
 #include <QStandardItemModel>
-#include <QModelIndex>
-#include <QVariant>
-#include <QString>
 #include <QDebug>
 
-class MyStandardItemModel : public QStandardItemModel
-{
+class MyStandardItemModel : public QStandardItemModel {
     Q_OBJECT
 
 public:
-    explicit MyStandardItemModel(QObject *parent = nullptr) : QStandardItemModel(parent) {}
+    explicit MyStandardItemModel(QObject *parent = nullptr)
+        : QStandardItemModel(parent) {}
 
 signals:
-    void itemTextChanged(const QModelIndex &index, const QString &oldValue, const QString &newValue);
+    void itemTextChanged(const QModelIndex &index, const QString &oldText, const QString &newText);
 
-protected:
+public:
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 };
-#endif //MYSTANDARDITEMMODEL_H
+#endif
