@@ -1,0 +1,19 @@
+QPushButton
+{
+    #background-color: rgb(254,254,254);
+    #color: rgb(215,215,215);
+}
+
+QWidget
+{
+   background-color: rgb(254,254,254);
+}
+
+QMenuBar
+{
+    background-color: rgb(254,254,254);
+}
+QTreeView#treeView_instance
+{
+    background-color: rgb(215,215,215);
+}
