@@ -1,5 +1,7 @@
 <RCC>
-    <qresource prefix="/"/>
+    <qresource prefix="/">
+        <file>night.qss</file>
+    </qresource>
     <qresource prefix="/cube">
         <file>frag.frag</file>
         <file>vertex.vert</file>

@@ -40,90 +40,6 @@
      </rect>
     </property>
    </widget>
-   <widget class="QWidget" name="gridLayoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>609</y>
-      <width>531</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <layout class="QGridLayout" name="gridLayout">
-     <item row="3" column="1">
-      <widget class="QPushButton" name="btn_createObject">
-       <property name="maximumSize">
-        <size>
-         <width>100</width>
-         <height>50</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>创建物体</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="4">
-      <widget class="QPushButton" name="btn_createLight">
-       <property name="text">
-        <string>创建灯光</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="6">
-      <widget class="QPushButton" name="btn_switchCamera">
-       <property name="text">
-        <string>切换摄像机</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="5">
-      <widget class="QPushButton" name="btn_createCamera">
-       <property name="text">
-        <string>创建摄像机</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="3">
-      <widget class="QComboBox" name="comboBox_light">
-       <item>
-        <property name="text">
-         <string>点光源</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>方向光源</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>面光源/聚光灯</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QComboBox" name="comboBox_object">
-       <item>
-        <property name="text">
-         <string>立方体</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>经纬球</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>圆环</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-    </layout>
-   </widget>
    <widget class="QTabWidget" name="tabWidget_attribute">
     <property name="geometry">
      <rect>
@@ -140,7 +56,7 @@
      <enum>QTabWidget::TabPosition::West</enum>
     </property>
     <property name="currentIndex">
-     <number>4</number>
+     <number>3</number>
     </property>
     <widget class="QWidget" name="tab_transform">
      <attribute name="title">
@@ -257,7 +173,7 @@
          <x>0</x>
          <y>0</y>
          <width>340</width>
-         <height>410</height>
+         <height>520</height>
         </rect>
        </property>
       </widget>
@@ -345,6 +261,100 @@
        </property>
       </item>
      </widget>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="widget_object" native="true">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>610</y>
+      <width>551</width>
+      <height>71</height>
+     </rect>
+    </property>
+    <widget class="QWidget" name="gridLayoutWidget">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>531</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="3" column="1">
+       <widget class="QPushButton" name="btn_createObject">
+        <property name="maximumSize">
+         <size>
+          <width>100</width>
+          <height>50</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>创建物体</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="4">
+       <widget class="QPushButton" name="btn_createLight">
+        <property name="text">
+         <string>创建灯光</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="6">
+       <widget class="QPushButton" name="btn_switchCamera">
+        <property name="text">
+         <string>切换摄像机</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="5">
+       <widget class="QPushButton" name="btn_createCamera">
+        <property name="text">
+         <string>创建摄像机</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
+       <widget class="QComboBox" name="comboBox_light">
+        <item>
+         <property name="text">
+          <string>点光源</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>方向光源</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>面光源/聚光灯</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QComboBox" name="comboBox_object">
+        <item>
+         <property name="text">
+          <string>立方体</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>经纬球</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>圆环</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </widget>
   </widget>

@@ -26,14 +26,21 @@ public:
     inline myLineEdit* getLineEditClipNear(){return m_lineEditClipNear;}
     inline myLineEdit* getLineEditClipFar(){return m_lineEditClipFar;}
 
+    inline myLineEdit* getLineEditLocationX(){return m_lineEditLocationX;}
+    inline myLineEdit* getLineEditLocationY(){return m_lineEditLocationY;}
+    inline myLineEdit* getLineEditLocationZ(){return m_lineEditLocationZ;}
+
 private slots:
-    void on_btn_Camera_clicked();
+    void on_btn_basicSetting_clicked();
+
+    void on_btn_cameraPosition_clicked();
 
 private:
     Ui::UiCamera *ui;
     QSpacerItem* m_vSpacerItem;
-    int m_spacerHeight = 330;
-    bool m_isWidgetCameraShow = false;//current status
+    int m_spacerHeight = 450;
+    bool m_isWidgetBasicSettingShow = false;//current status
+    bool m_isWidgetLocationShow = false;
 
     /*The following varietys are myLineEdits.*/
     myLineEdit* m_lineEditCameraFOV;
@@ -41,6 +48,10 @@ private:
     myLineEdit* m_lineEditCameraPitch;
     myLineEdit* m_lineEditClipNear;
     myLineEdit* m_lineEditClipFar;
+
+    myLineEdit* m_lineEditLocationX;
+    myLineEdit* m_lineEditLocationY;
+    myLineEdit* m_lineEditLocationZ;
 };
 
 #endif // UICAMERA_H

@@ -6,10 +6,12 @@ UiCamera::UiCamera(QWidget *parent)
     , ui(new Ui::UiCamera)
 {
     ui->setupUi(this);
-    ui->widget_camera->hide();
+    ui->widget_BasicSetting->hide();
+    ui->widget_location->hide();
     m_vSpacerItem = new QSpacerItem(0, m_spacerHeight, QSizePolicy::Minimum, QSizePolicy::Fixed);
     ui->vLayout_main->addSpacerItem(m_vSpacerItem);
 
+    /*basicSetting Widget*/
     m_lineEditCameraFOV = new myLineEdit(this);
     m_lineEditCameraFOV->setValue(45.00);
     QWidget *placeholderFOV = ui->lineEdit_cameraFOV;
@@ -39,6 +41,25 @@ UiCamera::UiCamera(QWidget *parent)
     QWidget *placeholderFar = ui->lineEdit_clipFar;
     ui->vLayout_camera->replaceWidget(placeholderFar, m_lineEditClipFar);
     placeholderFar->deleteLater(); // 删除占位符
+
+    /*location Widget*/
+    m_lineEditLocationX = new myLineEdit(this);
+    m_lineEditLocationX->setValue(0.00);
+    QWidget *placeholderLocationX = ui->lineEdit_cameraLocateX;
+    ui->vLayout_location->replaceWidget(placeholderLocationX, m_lineEditLocationX);
+    placeholderLocationX->deleteLater(); // 删除占位符
+
+    m_lineEditLocationY = new myLineEdit(this);
+    m_lineEditLocationY->setValue(0.00);
+    QWidget *placeholderLocationY = ui->lineEdit_cameraLocateY;
+    ui->vLayout_location->replaceWidget(placeholderLocationY, m_lineEditLocationY);
+    placeholderLocationY->deleteLater(); // 删除占位符
+
+    m_lineEditLocationZ = new myLineEdit(this);
+    m_lineEditLocationZ->setValue(0.00);
+    QWidget *placeholderLocationZ = ui->lineEdit_cameraLocateZ;
+    ui->vLayout_location->replaceWidget(placeholderLocationZ, m_lineEditLocationZ);
+    placeholderLocationZ->deleteLater(); // 删除占位符
 }
 
 UiCamera::~UiCamera()
@@ -51,21 +72,42 @@ QComboBox *UiCamera::getCameraType()
     return ui->combo_cameraType;
 }
 
-void UiCamera::on_btn_Camera_clicked()
+void UiCamera::on_btn_basicSetting_clicked()
 {
-    ui->widget_camera->setVisible(!m_isWidgetCameraShow);
-    m_isWidgetCameraShow = !m_isWidgetCameraShow;
-    if (m_isWidgetCameraShow == true)
+    ui->widget_BasicSetting->setVisible(!m_isWidgetBasicSettingShow);
+    m_isWidgetBasicSettingShow = !m_isWidgetBasicSettingShow;
+    if (m_isWidgetBasicSettingShow == true)
     {
-        m_spacerHeight -= 300;
+        m_spacerHeight -= 350;
         m_vSpacerItem->changeSize(0, m_spacerHeight, QSizePolicy::Minimum, QSizePolicy::Fixed);
-        ui->btn_Camera->setText(QString("v基础摄像机设置"));
+        ui->btn_basicSetting->setText(QString("v基础摄像机设置"));
     }
     else
     {
-        m_spacerHeight += 300;
+        m_spacerHeight += 350;
         m_vSpacerItem->changeSize(0, m_spacerHeight, QSizePolicy::Minimum, QSizePolicy::Fixed);
-        ui->btn_Camera->setText(QString(">基础摄像机设置"));
+        ui->btn_basicSetting->setText(QString(">基础摄像机设置"));
+    }
+    ui->vLayout_main->invalidate();
+    ui->vLayout_main->activate();
+}
+
+
+void UiCamera::on_btn_cameraPosition_clicked()
+{
+    ui->widget_location->setVisible(!m_isWidgetLocationShow);
+    m_isWidgetLocationShow = !m_isWidgetLocationShow;
+    if (m_isWidgetLocationShow == true)
+    {
+        m_spacerHeight -= 110;
+        m_vSpacerItem->changeSize(0, m_spacerHeight, QSizePolicy::Minimum, QSizePolicy::Fixed);
+        ui->btn_cameraPosition->setText(QString("v摄像机位置"));
+    }
+    else
+    {
+        m_spacerHeight += 110;
+        m_vSpacerItem->changeSize(0, m_spacerHeight, QSizePolicy::Minimum, QSizePolicy::Fixed);
+        ui->btn_cameraPosition->setText(QString(">摄像机位置"));
     }
     ui->vLayout_main->invalidate();
     ui->vLayout_main->activate();

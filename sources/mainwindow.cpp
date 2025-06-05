@@ -85,6 +85,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_uicamera->getLineEditCameraPitch(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
     connect(m_uicamera->getLineEditClipNear(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
     connect(m_uicamera->getLineEditClipFar(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditLocationX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditLocationY(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
+    connect(m_uicamera->getLineEditLocationZ(), &myLineEdit::sigValueChanged, this, &MainWindow::slotCameraAttributeChanged);
 
     connect(m_uimaterial->getLineEditMetallic(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectMaterial);
     connect(m_uimaterial->getLineEditRoughness(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectMaterial);
@@ -113,6 +116,7 @@ MainWindow::MainWindow(QWidget *parent)
     // }
     Logger::GetInstance().run();
     setdisableAttributeWidget(ui->tabWidget_attribute, true);
+    ui->widget_object->setGeometry(10,750, 1200, 500);
 }
 
 MainWindow::~MainWindow()
@@ -351,16 +355,16 @@ void MainWindow::slotRemoveUVTexture()
 
 void MainWindow::slotCameraAttributeChanged()
 {
-    //进行矩阵变换，材质添加等，需要先在实例管理中选定某个条目才更新
+    //进行摄像机的属性变换，需要先在实例管理中选定某个条目才更新
     vector<string> selectedStrVec = getSelectedVector();
     if (selectedStrVec.size() == 0)
     {
-        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一各个物体去更改"));
+        QMessageBox::warning(this, tr("Warning"), tr("请在实例管理中至少选择一个摄像机去更改"));
         return ;
     }
     else if (selectedStrVec.size() > 1)
     {
-        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个物体去更改"));
+        QMessageBox::warning(this, tr("Warning"), tr("暂时只能选择一个摄像机去更改"));
         return ;
     }
     //摄像机的属性设置
@@ -371,9 +375,9 @@ void MainWindow::slotCameraAttributeChanged()
     float clipNear = static_cast<float>(m_uicamera->getLineEditClipNear()->getValue());
     float clipFar = static_cast<float>(m_uicamera->getLineEditClipFar()->getValue());
     glm::vec3 position;
-    position.x = static_cast<float>(m_uitransform->getLineEditRotationX()->getValue());
-    position.y = static_cast<float>(m_uitransform->getLineEditRotationY()->getValue());
-    position.z = static_cast<float>(m_uitransform->getLineEditRotationZ()->getValue());
+    position.x = static_cast<float>(m_uicamera->getLineEditLocationX()->getValue());
+    position.y = static_cast<float>(m_uicamera->getLineEditLocationY()->getValue());
+    position.z = static_cast<float>(m_uicamera->getLineEditLocationZ()->getValue());
     //摄像机的旋转和缩放暂时不加
     emit sigSetCameraAttribute(selectedStrVec, cameratype, fov, yaw, pitch, clipNear, clipFar, position);
 }
@@ -551,9 +555,9 @@ void MainWindow::showCameraInfo(Camera *ptr)
     m_uicamera->getLineEditClipNear()->setValue(ptr->getNearClip());
     m_uicamera->getLineEditClipFar()->setValue(ptr->getFarClip());
 
-    m_uitransform->getLineEditTranslationX()->setValue(ptr->getCameraPosition().x);
-    m_uitransform->getLineEditTranslationY()->setValue(ptr->getCameraPosition().y);
-    m_uitransform->getLineEditTranslationZ()->setValue(ptr->getCameraPosition().z);
+    m_uicamera->getLineEditLocationX()->setValue(ptr->getCameraPosition().x);
+    m_uicamera->getLineEditLocationY()->setValue(ptr->getCameraPosition().y);
+    m_uicamera->getLineEditLocationZ()->setValue(ptr->getCameraPosition().z);
 }
 
 void MainWindow::slotChangeItemName(const QModelIndex &index, const QString &oldValue, const QString &newValue)
@@ -610,7 +614,8 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
     ui->openGLWidget_main->setGeometry(10, 10, width() * 3.0f/4.0f, width() * 3.0f/4.0f * 9.0f/16.0f);
     ui->treeView_instance->setGeometry(3.9f/5.0f *width() , 10, width() * 1.0f/5.0f, width() * 1.1f/5.0f);
-    ui->gridLayoutWidget->setGeometry(10,width() * 3.0f/4.0f * 9.0f/16.0f -40, 2.0f/5.0f * width(), 1.0f/5.0f * width());
+   // ui->gridLayoutWidget->setGeometry(10,width() * 3.0f/4.0f * 9.0f/16.0f -40, 2.0f/5.0f * width(), 1.0f/5.0f * width());
+ //  ui->widget_object->setGeometry(10,width() * 3.0f/4.0f * 9.0f/16.0f -40, 2.0f/5.0f * width(), 1.0f/5.0f * width());
     ui->tabWidget_attribute->setGeometry(3.9f/5.0f *width(), width() * 1.1f/5.0f + 20, width() * 1.0f/5.0f+10, width() * 1.2f/5.0f);
     if (m_glwidget != nullptr)
         m_glwidget->resize(ui->openGLWidget_main->width(), ui->openGLWidget_main->height());
