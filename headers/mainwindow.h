@@ -120,6 +120,10 @@ private slots:
     void slotChangeLightSetting();
 
 
+    void on_btn_createAssimpModel_clicked();
+
+    void slotLoadAssimpModel(const QString &s);
+
 signals:
     void sigRemove(const std::vector<std::string>&strRemove);
 
@@ -149,6 +153,7 @@ private:
 
     QColorDialog* m_colorDialog;
     std::unique_ptr<QFileDialog> m_fileDialog;
+    std::unique_ptr<QFileDialog> m_fileAssimpDialog;
 
     //QStandardItemModel* m_model;
     MyStandardItemModel* m_model;

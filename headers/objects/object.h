@@ -24,15 +24,20 @@ public:
     virtual ~Object() {}
 
     struct Vertex
-    {
+    {//一共18个
         float x, y, z; // 位置
-        float r, g, b;// a; 颜色
+        float r, g, b, a; //颜色
         float nx, ny, nz; // 法线
         float u, v; // UV坐标
         float tangentX, tangentY, tangentZ; // 切线
         float bitangentX, bitangentY, bitangentZ; // 副切线
     };
-
+    //这个texture是加载模型时用的
+    struct AssimpTexture {
+        unsigned int id;
+        TextureType type;
+        std::string path;
+    };
     // 初始化物体（加载着色器、缓冲区等）
     virtual void initialize() = 0;
 

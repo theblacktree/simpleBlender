@@ -12,6 +12,7 @@ Camera::Camera(glm::vec3 position ,glm::vec3 worldUp ,float yaw , float pitch)
 
 void Camera::updateCameraVectors()
 {
+    //this is the classic calculate fortrum iuntroduced in learn opengl
     glm::vec3 newFront;
     newFront.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
     newFront.y = sin(glm::radians(m_pitch));

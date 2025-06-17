@@ -1,13 +1,17 @@
-#version 430 core
+#version 330 core
 layout (location = 0) in vec3 aPos;
-
-out vec3 TexCoords;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform mat4 amodel;
+out vec3 localPos;
 
 void main()
 {
-    TexCoords = aPos;
-    gl_Position = projection * view * vec4(aPos, 1.0);
+    localPos = aPos;
+
+    mat4 rotView = mat4(mat3(view)); // remove translation from the view matrix
+    vec4 clipPos = projection * rotView * amodel * vec4(localPos, 1.0);
+
+    gl_Position = clipPos.xyww;
 }

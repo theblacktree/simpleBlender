@@ -47,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->scrollArea_light->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     m_fileDialog = make_unique<QFileDialog>(new QFileDialog);
+    m_fileAssimpDialog = make_unique<QFileDialog>(new QFileDialog);
     connect(m_model, &MyStandardItemModel::itemTextChanged, this, &MainWindow::slotChangeItemName);
     ui->treeView_instance->setModel(m_model);
     ui->treeView_instance->expandAll();
@@ -67,6 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_fileDialog.get(), &QFileDialog::fileSelected, this,  &MainWindow::slotpassUVTextureInfo);
     //删除贴图
     connect(ui->btn_RemoveUVTexture, & QPushButton::clicked,this, &MainWindow::slotRemoveUVTexture);
+    //添加assimp贴图
+    connect(m_fileAssimpDialog.get(), &QFileDialog::fileSelected, this,  &MainWindow::slotLoadAssimpModel);
 
     /*The following connections are about tabWidget*/
     connect(m_uitransform->getLineEditTranslationX(), &myLineEdit::sigValueChanged, this, &MainWindow::slotChangeObjectModel);
@@ -651,10 +654,27 @@ void MainWindow::setdisableAttributeWidget(QWidget* widget, bool disabled)
     {
         btn->setDisabled(disabled);
     }
+    ui->btn_addUVTexture->setEnabled(true);
     QList<QComboBox*> allboxs = widget->findChildren<QComboBox *>();
 
     for (QComboBox *box : allboxs)
     {
         box->setDisabled(disabled);
     }
+    ui->comboBox_textureType->setEnabled(true);
 }
+
+void MainWindow::on_btn_createAssimpModel_clicked()
+{
+    //显示windows文件管理器的dialog
+    m_fileAssimpDialog->setGeometry(1000, 100, 650, 400);
+    m_fileAssimpDialog->show();
+}
+
+void MainWindow::slotLoadAssimpModel(const QString &s)
+{
+    /*在这里加载Assimp模型*/
+    string filePath = s.toStdString();
+    m_glwidget->loadAssimpModel(filePath);
+}
+

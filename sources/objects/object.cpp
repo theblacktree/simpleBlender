@@ -68,7 +68,7 @@ std::vector<float> Object::getMaterialValue()
     return texture;
 }
 
- void Object::recordError(const char* s)
+void Object::recordError(const char* s)
 {
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
@@ -84,22 +84,22 @@ void Object::calculateTangentBiTangent(GLfloat vertices[], GLuint indices[], siz
         unsigned int index1 = indices[i + 1];
         unsigned int index2 = indices[i + 2];
 
-        GLfloat pos0x = vertices[index0*17];
-        GLfloat pos0y = vertices[index0*17 +1];
-        GLfloat pos0z = vertices[index0*17 +2];
-        GLfloat pos1x = vertices[index1*17];
-        GLfloat pos1y = vertices[index1*17 +1];
-        GLfloat pos1z = vertices[index1*17 +2];
-        GLfloat pos2x = vertices[index2*17];
-        GLfloat pos2y = vertices[index2*17 +1];
-        GLfloat pos2z = vertices[index2*17 +2];
+        GLfloat pos0x = vertices[index0*18];
+        GLfloat pos0y = vertices[index0*18 +1];
+        GLfloat pos0z = vertices[index0*18 +2];
+        GLfloat pos1x = vertices[index1*18];
+        GLfloat pos1y = vertices[index1*18 +1];
+        GLfloat pos1z = vertices[index1*18 +2];
+        GLfloat pos2x = vertices[index2*18];
+        GLfloat pos2y = vertices[index2*18 +1];
+        GLfloat pos2z = vertices[index2*18 +2];
 
-        GLfloat uv0_u = vertices[index0 * 17 + 9];
-        GLfloat uv0_v = vertices[index0 * 17 + 10];
-        GLfloat uv1_u = vertices[index1 * 17 + 9];
-        GLfloat uv1_v = vertices[index1 * 17 + 10];
-        GLfloat uv2_u = vertices[index2 * 17 + 9];
-        GLfloat uv2_v = vertices[index2 * 17 + 10];
+        GLfloat uv0_u = vertices[index0 * 18 + 10];
+        GLfloat uv0_v = vertices[index0 * 18 + 11];
+        GLfloat uv1_u = vertices[index1 * 18 + 10];
+        GLfloat uv1_v = vertices[index1 * 18 + 11];
+        GLfloat uv2_u = vertices[index2 * 18 + 10];
+        GLfloat uv2_v = vertices[index2 * 18 + 11];
 
         GLfloat ege1x = pos1x - pos0x;
         GLfloat ege2x = pos2x - pos0x;
@@ -123,43 +123,43 @@ void Object::calculateTangentBiTangent(GLfloat vertices[], GLuint indices[], siz
         GLfloat bitangenty = f * (-deltaUV2_U * ege1y + deltaUV1_U * ege2y);
         GLfloat bitangentz = f * (-deltaUV2_U * ege1z + deltaUV1_U * ege2z);
 
-        vertices[index0 * 17+11] += tangentx;
-        vertices[index0 * 17+12] += tangenty;
-        vertices[index0 * 17+13] += tangentz;
-        vertices[index1 * 17+11] += tangentx;
-        vertices[index1 * 17+12] += tangenty;
-        vertices[index1 * 17+13] += tangentz;
-        vertices[index2 * 17+11] += tangentx;
-        vertices[index2 * 17+12] += tangenty;
-        vertices[index2 * 17+13] += tangentz;
+        vertices[index0 * 18+12] += tangentx;
+        vertices[index0 * 18+13] += tangenty;
+        vertices[index0 * 18+14] += tangentz;
+        vertices[index1 * 18+12] += tangentx;
+        vertices[index1 * 18+13] += tangenty;
+        vertices[index1 * 18+14] += tangentz;
+        vertices[index2 * 18+12] += tangentx;
+        vertices[index2 * 18+13] += tangenty;
+        vertices[index2 * 18+14] += tangentz;
 
-        vertices[index0 * 17+14] += bitangentx;
-        vertices[index0 * 17+15] += bitangenty;
-        vertices[index0 * 17+16] += bitangentz;
-        vertices[index1 * 17+14] += bitangentx;
-        vertices[index1 * 17+15] += bitangenty;
-        vertices[index1 * 17+16] += bitangentz;
-        vertices[index2 * 17+14] += bitangentx;
-        vertices[index2 * 17+15] += bitangenty;
-        vertices[index2 * 17+16] += bitangentz;
+        vertices[index0 * 18+15] += bitangentx;
+        vertices[index0 * 18+16] += bitangenty;
+        vertices[index0 * 18+17] += bitangentz;
+        vertices[index1 * 18+15] += bitangentx;
+        vertices[index1 * 18+16] += bitangenty;
+        vertices[index1 * 18+17] += bitangentz;
+        vertices[index2 * 18+15] += bitangentx;
+        vertices[index2 * 18+16] += bitangenty;
+        vertices[index2 * 18+17] += bitangentz;
     }
     // Normalize tangents and ensure they are orthogonal to normals
     for (size_t index = 0; index <verticesRowCount; ++index)
     {//index是行数
         glm::vec3 N;
-        N.x = vertices[index * 17 +6]; // 法线
-        N.y = vertices[index * 17 +7]; // 法线
-        N.z = vertices[index * 17 +8]; // 法线
+        N.x = vertices[index * 18 +7]; // 法线
+        N.y = vertices[index * 18 +8]; // 法线
+        N.z = vertices[index * 18 +9]; // 法线
 
         glm::vec3 T;
-        T.x = vertices[index * 17 + 11]; // 切线
-        T.y = vertices[index * 17 + 12]; // 切线
-        T.z = vertices[index * 17 + 13]; // 切线
+        T.x = vertices[index * 18 + 12]; // 切线
+        T.y = vertices[index * 18 + 13]; // 切线
+        T.z = vertices[index * 18 + 14]; // 切线
 
         glm::vec3 accumulatedB;
-        accumulatedB.x = vertices[index * 17 + 14];
-        accumulatedB.y = vertices[index * 17 + 15];
-        accumulatedB.z = vertices[index * 17 + 16];
+        accumulatedB.x = vertices[index * 18 + 15];
+        accumulatedB.y = vertices[index * 18 + 16];
+        accumulatedB.z = vertices[index * 18 + 17];
 
         // 使切线与法线正交
         T = glm::normalize(T - N * glm::dot(N, T));
@@ -175,12 +175,12 @@ void Object::calculateTangentBiTangent(GLfloat vertices[], GLuint indices[], siz
         if (glm::dot(accumulatedB, B) < 0.0f) {
             T *= -1.0f;
         }
-        vertices[index * 17 + 11] = T.x; // 切线
-        vertices[index * 17 + 12] = T.y; // 切线
-        vertices[index * 17 + 13] = T.z; // 切线
-        vertices[index * 17 + 14] = B.x;
-        vertices[index * 17 + 15] = B.y;
-        vertices[index * 17 + 16] = B.z;
+        vertices[index * 18 + 12] = T.x; // 切线
+        vertices[index * 18 + 13] = T.y; // 切线
+        vertices[index * 18 + 14] = T.z; // 切线
+        vertices[index * 18 + 15] = B.x;
+        vertices[index * 18 + 16] = B.y;
+        vertices[index * 18 + 17] = B.z;
     }
 }
 

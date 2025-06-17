@@ -28,6 +28,7 @@ GLWidget::GLWidget(MainWindow* mainWindow, QWidget *parent) : QOpenGLWidget(pare
     connect(m_mainWindow, &MainWindow::sigRemoveUVTextures, this, &GLWidget::slotRemoveObjectUVTexture);
 
     connect(m_mainWindow, &MainWindow::sigCreateHDRMap, this, &GLWidget::slotCreateHDRMAP);
+    m_cuskybox = new HDRObject;
 }
 
 GLWidget::~GLWidget()
@@ -351,6 +352,177 @@ void GLWidget::renameOneItem(const std::string oldStr, const std::string newStr)
 
     }
 }
+//加载assimp模型
+void GLWidget::loadAssimpModel(std::string path)
+{
+    Assimp::Importer import;
+    const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+//debug加载模型有些慢
+    if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+    {
+        cout << "ERROR::ASSIMP::" << import.GetErrorString() << endl;
+        return;
+    }
+    m_assimpdirectory = path.substr(0, path.find_last_of('/'));
+
+    processAssimpNode(scene->mRootNode, scene);
+}
+
+void GLWidget::processAssimpNode(aiNode *node, const aiScene *scene)
+{
+    // 处理节点所有的网格（如果有的话）
+    for(unsigned int i = 0; i < node->mNumMeshes; i++)
+    {
+        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
+        m_AssimpMeshs.insert( processAssimpMesh(mesh, scene));
+        update();//添加一个物体更新一次
+    }
+    // 接下来对它的子节点重复这一过程
+    for(unsigned int i = 0; i < node->mNumChildren; i++)
+    {
+        processAssimpNode(node->mChildren[i], scene);
+    }
+}
+//调用这个函数将模型中的aimesh数据加载到我们自己的Mesh对象中
+Mesh* GLWidget::processAssimpMesh(aiMesh *mesh, const aiScene *scene)
+{
+    vector<Mesh::Vertex> vertices;
+    vector<unsigned int> indices;
+    vector<Mesh::AssimpTexture> textures;
+    for(unsigned int i = 0; i < mesh->mNumVertices; i++)
+    {
+        Object::Vertex vertex;// = {0.0f};
+        //memset(&vertex, 0x00, sizeof(vertex));
+        // // 处理顶点位置、法线和纹理坐标
+         vertex.x = mesh->mVertices[i].x;
+         vertex.y = mesh->mVertices[i].y;
+         vertex.z = mesh->mVertices[i].z;
+
+         //颜色信息,这是我自己加的
+         if (mesh->mColors[0] != nullptr)
+         {
+             vertex.r = mesh->mColors[0][i].r;
+             vertex.g = mesh->mColors[0][i].g;
+             vertex.b = mesh->mColors[0][i].b;
+             vertex.a = mesh->mColors[0][i].a;
+         }
+         else
+         {
+             vertex.r = 0.3;
+             vertex.g = 0.5;
+             vertex.b = 0.4;
+             vertex.a = 1.0;
+         }
+
+         //法线坐标
+          if (mesh->HasNormals())
+        {
+            vertex.nx = mesh->mNormals[i].x;
+            vertex.ny = mesh->mNormals[i].y;
+            vertex.nz = mesh->mNormals[i].z;
+        }
+        else
+        {
+              vertex.nx = 0;
+              vertex.ny = 0;
+              vertex.nz = 0;
+        }
+
+         //纹理uv坐标
+         if(mesh->mTextureCoords[0]) // 网格是否有纹理坐标？
+         {//uv坐标的第三个分量暂时不考虑
+             vertex.u = mesh->mTextureCoords[0][i].x;
+             vertex.v = mesh->mTextureCoords[0][i].y;
+         }
+         else
+         {
+             vertex.u = 0;
+             vertex.v = 0;
+         }
+         //切线和副切线
+        if (mesh->mTangents != nullptr)
+        {
+             vertex.tangentX = mesh->mTangents[i].x;
+             vertex.tangentY = mesh->mTangents[i].y;
+             vertex.tangentZ = mesh->mTangents[i].z;
+
+             vertex.bitangentX = mesh->mBitangents[i].x;
+             vertex.bitangentY = mesh->mBitangents[i].y;
+             vertex.bitangentZ = mesh->mBitangents[i].z;
+        }
+        else
+        {
+            vertex.tangentX = 0;
+            vertex.tangentY = 0;
+            vertex.tangentZ = 0;
+
+            vertex.bitangentX = 0;
+            vertex.bitangentY = 0;
+            vertex.bitangentZ = 0;
+        }
+
+        vertices.push_back(vertex);
+    }
+    // 处理索引
+    for(unsigned int i = 0; i < mesh->mNumFaces; i++)
+    {
+        aiFace face = mesh->mFaces[i];
+        for(unsigned int j = 0; j < face.mNumIndices; j++)
+            indices.push_back(face.mIndices[j]);
+    }
+        // 处理材质
+    if(mesh->mMaterialIndex >= 0)
+    {
+        aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+        //漫反射贴图
+        vector<Mesh::AssimpTexture> diffuseMaps = loadMaterialTextures(material,
+                                                           aiTextureType_DIFFUSE, TextureType::DIFFUSE_MAP);
+        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+        //这边可能需要更多的贴图类型
+        //高光贴图
+        vector<Mesh::AssimpTexture> specularMaps = loadMaterialTextures(material,
+                                                            aiTextureType_SPECULAR, TextureType::SPECULAR_MAP);
+        textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        //法线贴图
+        vector<Mesh::AssimpTexture> normalMaps = loadMaterialTextures(material, \
+                                                             aiTextureType_NORMALS, TextureType::NORMAL_MAP);
+         textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+        //高度贴图
+        vector<Mesh::AssimpTexture> heightMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, TextureType::HEIGHT_MAP);
+        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+        // 环境光贴图
+        vector<Mesh::AssimpTexture> ambientMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, TextureType::AMBIENT_MAP);
+        textures.insert(textures.end(), ambientMaps.begin(), ambientMaps.end());
+        //粗糙度贴图
+        vector<Mesh::AssimpTexture> roughnessMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE_ROUGHNESS, TextureType::ROUGHNESS_MAP);
+        textures.insert(textures.end(), roughnessMaps.begin(), roughnessMaps.end());
+        //AO贴图
+        vector<Mesh::AssimpTexture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT_OCCLUSION, TextureType::AO_MAP);
+        textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
+    }
+    Mesh* meshInstance = new Mesh(vertices, indices, textures);
+    meshInstance->initialize();
+    return meshInstance;
+}
+vector<Mesh::AssimpTexture> GLWidget:: loadMaterialTextures(aiMaterial *mat, aiTextureType type, TextureType typeEnumId)
+{
+    vector<Mesh::AssimpTexture> textures;
+    for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+    {
+        aiString str;
+        mat->GetTexture(type, i, &str);
+        bool skip = false;
+
+        Mesh::AssimpTexture texture;
+        string filepath = m_assimpdirectory + "/"+string(str.C_Str());
+        texture.id = TextureManager::GetInstance().load2DAssimpTexture(filepath, typeEnumId);
+        texture.type = typeEnumId;
+        texture.path = str.C_Str();
+        cout<<str.C_Str()<<static_cast<int>(typeEnumId)<<endl;
+        textures.push_back(texture);
+    }
+    return textures;
+}
 int GLWidget::getObjectCount() const
 {
     return m_objects.size();
@@ -410,6 +582,7 @@ void GLWidget::slotRemoveObjectUVTexture(const std::string &selectedString, Text
 
 void GLWidget::slotCreateHDRMAP(std::wstring &HDRFilePath)
 {
+
     TextureManager::GetInstance().loadHDRMap(HDRFilePath);
     update();
 }
@@ -426,13 +599,18 @@ void GLWidget::initializeGL()
     glDisable(GL_CULL_FACE);
     glEnable(GL_MULTISAMPLE);
    // glDepthMask(GL_FALSE);
+    m_cuskybox->initialize();
     for (auto&[key,obj] : m_objects) {
         obj->initialize();
     }
-
+    //初始化模型数据
+    for (auto& mesh : m_AssimpMeshs) {
+        mesh->initialize();
+    }
 
 
     // 创建并链接着色器程序
+    //渲染物体的pbr着色器
     m_objectProgram = glCreateProgram();
     GLuint objectVertexShader;
     GLuint objectFragmentShader;
@@ -440,7 +618,7 @@ void GLWidget::initializeGL()
     glAttachShader(m_objectProgram, objectVertexShader);
     glAttachShader(m_objectProgram, objectFragmentShader);
     glLinkProgram(m_objectProgram);
-
+    //渲染物体的天空盒着色器
     m_skyboxProgram = glCreateProgram();
     GLuint skyboxVertexShader;
     GLuint skyboxFragmentShader;
@@ -448,6 +626,24 @@ void GLWidget::initializeGL()
     glAttachShader(m_skyboxProgram, skyboxVertexShader);
     glAttachShader(m_skyboxProgram, skyboxFragmentShader);
     glLinkProgram(m_skyboxProgram);
+    //将hdr转换为立方体贴图的着色器
+    m_hdrtocubemapProgram = glCreateProgram();
+    GLuint hdrtocubemapVertexShader;
+    GLuint hdrtocubemapFragmentShader;
+    addShader(m_hdrtocubemapVertexPath, m_hdrtocubemapFragmentPath, hdrtocubemapVertexShader, hdrtocubemapFragmentShader);
+    glAttachShader(m_hdrtocubemapProgram, hdrtocubemapVertexShader);
+    glAttachShader(m_hdrtocubemapProgram, hdrtocubemapFragmentShader);
+    glLinkProgram(m_hdrtocubemapProgram);
+    //assimpbli-phone着色器
+    m_assimploadProgram = glCreateProgram();
+    GLuint assimploadVertexShader;
+    GLuint assimploadFragmentShader;
+    addShader(m_assimploadVertexPath, m_assimploadFragmentPath, assimploadVertexShader, assimploadFragmentShader);
+    glAttachShader(m_assimploadProgram, assimploadVertexShader);
+    glAttachShader(m_assimploadProgram, assimploadFragmentShader);
+    glLinkProgram(m_assimploadProgram);
+
+
 
     // 检查程序链接错误
     int success;
@@ -468,20 +664,6 @@ void GLWidget::initializeGL()
     // 分配内存并上传初始数据
      // 初始化光源数组
     for (int i = 0; i < MAX_LIGHTS; ++i) {
-        // allLights[i].type = 0; // 默认为点光源
-        // allLights[i].position = vec4(0.0f, 0.0f, -2.0f, 0.0f);
-        // allLights[i].direction = vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        // allLights[i].color = vec4(0.3f, 0.5f, 0.7f, 1.0f); // lan色
-        // allLights[i].intensity = 0.0f;
-        // allLights[i].constant = 0.0f;
-        // allLights[i].linear = 0.0f;
-        // allLights[i].quadratic = 0.0f;
-        // allLights[i].areaSize = vec2(0.0f, 0.0f);
-        // allLights[i].innerAngle = 0.0f;
-        // allLights[i].outerAngle = 0.0f;
-        // allLights[i]._padding1 = 0.0f;
-        // allLights[i]._padding2 = 0.0f;
-        // allLights[i]._padding3 = 0.0f;
         initShaderLight(allLights[i]);
     }
     // 在链接着色器程序后添加：
@@ -525,32 +707,95 @@ void GLWidget::initializeGL()
     std::cout << "Currentinit UBO Binding: " << boundUBO << std::endl;
     // 解绑缓冲区
    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    glUseProgram(0);
+    //重复绑定ubo到assimpbliphone着色器
+   glUseProgram(m_assimploadProgram);
+
+   glGenBuffers(1, &m_ubo);
+   // 分配内存并上传初始数据
+   // 初始化光源数组
+   for (int i = 0; i < MAX_LIGHTS; ++i) {
+       initShaderLight(allLights[i]);
+   }
+   // 在链接着色器程序后添加：
+   cout<<"m_ubo在绑定前的值为："<<m_ubo<<endl;
+   glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
+   cout<<"m_ubo在绑定后的值为："<<m_ubo<<endl;
+   glBufferData(GL_UNIFORM_BUFFER, sizeof(ShaderLight) * MAX_LIGHTS, allLights.data(), GL_DYNAMIC_DRAW);
+
+   // 绑定到绑定点 0
+   glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo);
+
+   GLuint blockIndex1 = glGetUniformBlockIndex(m_assimploadProgram, "LightBlock");
+   if (blockIndex1 != GL_INVALID_INDEX) {
+       glUniformBlockBinding(m_assimploadProgram, blockIndex1, 0); // 绑定到绑定点 0
+       GLint bindingPoint;
+       glGetActiveUniformBlockiv(m_assimploadProgram, blockIndex1, GL_UNIFORM_BLOCK_BINDING, &bindingPoint);
+       std::cout << "LightBlock Binding Point: " << bindingPoint << std::endl;
+   } else {
+       qCritical() << "LightBlock not found in shader!";
+   }
+   // 解绑缓冲区
+   glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
     // 删除已链接的着色器对象
    glDeleteShader(objectVertexShader);
    glDeleteShader(objectFragmentShader);
    glDeleteShader(skyboxVertexShader);
    glDeleteShader(skyboxFragmentShader);
+   glDeleteShader(hdrtocubemapVertexShader);
+   glDeleteShader(hdrtocubemapFragmentShader);
+   glDeleteShader(assimploadVertexShader);
+   glDeleteShader(assimploadFragmentShader);
 
    glUseProgram(0);
 }
 
 void GLWidget::paintGL()
 {
+    //if (TextureManager::GetInstance().getHDRTextureId() == 0)
+        drawPBR();
+   // else
+        //drawPBRIBL();
+        //drawAssimpPhong();
+
+}
+
+void GLWidget::resizeGL(int w, int h)
+{
+   // glViewport(0, 0, w, h);
+ /*   for (auto&[key,obj] : m_objects) {
+        makeCurrent();
+        obj->resize(w, h);
+        doneCurrent();
+    }
+*/
+    glViewport(0, 0, w, h);
+  //  m_projection = identity<mat4>();
+  //  m_projection = perspective(radians(45.0f),static_cast<float>(w)/h, 0.1f, 100.0f);
+    float aspect = static_cast<float>(w) / static_cast<float>(h);
+    m_currentCamera->setAspectRatio(aspect); // 45.0f 是视角角度
+
+    //glMatrixMode(GL_MODELVIEW);
+   // glLoadIdentity();
+}
+
+void GLWidget::drawPBR()
+{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(m_skyboxProgram);
+    glUseProgram(m_hdrtocubemapProgram);
     //上传HDR贴图
     GLuint HDRTextureId = TextureManager::GetInstance().getHDRTextureId();
-    GLint useHDRMapLoc = glGetUniformLocation(m_skyboxProgram, "isUseHDRMap");
+    GLint useHDRMapLoc = glGetUniformLocation(m_hdrtocubemapProgram, "isUseHDRMap");
     glUniform1i(useHDRMapLoc, HDRTextureId ? 1 : 0);
-    //follow is bing texture
 
     // bind Texture
     // Activate and bind the diffuse texture
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, HDRTextureId);
 
-    glUniform1i(glGetUniformLocation(m_skyboxProgram, "equirectangularMap"), 3); // GL_TEXTURE2
+    glUniform1i(glGetUniformLocation(m_hdrtocubemapProgram, "equirectangularMap"), 3); // GL_TEXTURE2
     glUseProgram(0);
 
     //处理灯光部分，设置ubo
@@ -568,15 +813,15 @@ void GLWidget::paintGL()
     if (error5 != GL_NO_ERROR) {
         qCritical() << "5:" << error5;
     }
-    GLint beforeBinding;
-    glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &beforeBinding);
-    std::cout << "Before binding UBO: " << beforeBinding << std::endl;
+    // GLint beforeBinding;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &beforeBinding);
+    // std::cout << "Before binding UBO: " << beforeBinding << std::endl;
 
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo); // 强制绑定到 0
 
-    GLint afterBinding;
-    glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &afterBinding);
-    std::cout << "After binding UBO: " << afterBinding << std::endl;
+    // GLint afterBinding;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &afterBinding);
+    // std::cout << "After binding UBO: " << afterBinding << std::endl;
 
     GLint numLightsLoc = glGetUniformLocation(m_objectProgram, "numLights");
     glUniform1i(numLightsLoc, totalLights);
@@ -616,7 +861,7 @@ void GLWidget::paintGL()
         allLights[index] = sl;
         ++index;
     }
-   // cout<<"灯光数量是："<<totalLights<<endl;
+    // cout<<"灯光数量是："<<totalLights<<endl;
 
     // 更新 UBO 数据
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ShaderLight) * allLights.size(), allLights.data());
@@ -624,44 +869,203 @@ void GLWidget::paintGL()
     if (error7 != GL_NO_ERROR) {
         qCritical() << "7:" << error7;
     }
-    GLint boundUBO;
-    glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &boundUBO);
-    std::cout << "Currentpaint UBO Binding: " << boundUBO << std::endl;
+    // GLint boundUBO;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &boundUBO);
+    // std::cout << "Currentpaint UBO Binding: " << boundUBO << std::endl;
     // 解绑 UBO
-   glBindBuffer(GL_UNIFORM_BUFFER,0);
+    glBindBuffer(GL_UNIFORM_BUFFER,0);
 
-   //处理摄像机，上传当前摄像机的视图矩阵和透射矩阵和位置向量
-   GLint viewLoc = glGetUniformLocation(m_objectProgram, "aview");
-   glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
-   GLint projectionLoc = glGetUniformLocation(m_objectProgram, "aprojection");
-   glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
-   GLint camerapositionLoc = glGetUniformLocation(m_objectProgram, "acameraPosition");
-   glUniform3fv(camerapositionLoc, 1, glm::value_ptr(m_currentCamera->getCameraPosition()));
-   // 遍历所有物体并调用其绘制函数
-   for (auto&[key,obj] : m_objects) {
-       obj->draw(m_objectProgram);
-   }
+    //处理摄像机，上传当前摄像机的视图矩阵和透射矩阵和位置向量
+    GLint viewLoc = glGetUniformLocation(m_objectProgram, "aview");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
+    GLint projectionLoc = glGetUniformLocation(m_objectProgram, "aprojection");
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
+    GLint camerapositionLoc = glGetUniformLocation(m_objectProgram, "acameraPosition");
+    glUniform3fv(camerapositionLoc, 1, glm::value_ptr(m_currentCamera->getCameraPosition()));
+    // 遍历所有物体并调用其绘制函数
+    if (TextureManager::GetInstance().getHDRTextureId() != 0)
+    {
+        glUseProgram(m_hdrtocubemapProgram);
+        GLint viewskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "view");
+        glUniformMatrix4fv(viewskyLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
+        GLint projectionskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "projection");
+        glUniformMatrix4fv(projectionskyLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
+        //glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(100.0f));
+        // m_cuskybox->setModelMatrix(model);
+        m_cuskybox->draw(m_hdrtocubemapProgram);
+        glUseProgram(0);
+    }
 
-   glUseProgram(0);
+    glUseProgram(m_objectProgram);
+    for (auto&[key,obj] : m_objects) {
+        obj->draw(m_objectProgram);
+    }
+    //渲染所有assimp导入的mesh物体
+    for (auto& mesh : m_AssimpMeshs) {
+        mesh->draw(m_objectProgram);
+    }
+    glUseProgram(0);
 }
 
-void GLWidget::resizeGL(int w, int h)
+void GLWidget::drawPBRIBL()
 {
-   // glViewport(0, 0, w, h);
- /*   for (auto&[key,obj] : m_objects) {
-        makeCurrent();
-        obj->resize(w, h);
-        doneCurrent();
-    }
-*/
-    glViewport(0, 0, w, h);
-  //  m_projection = identity<mat4>();
-  //  m_projection = perspective(radians(45.0f),static_cast<float>(w)/h, 0.1f, 100.0f);
-    float aspect = static_cast<float>(w) / static_cast<float>(h);
-    m_currentCamera->setAspectRatio(aspect); // 45.0f 是视角角度
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_CULL_FACE); // 或者 glCullFace(GL_FRONT);
+    glCheckError_("glw",688);
+    glUseProgram(m_hdrtocubemapProgram);
+    //上传HDR贴图
+    GLuint HDRTextureId = TextureManager::GetInstance().getHDRTextureId();
+    GLint useHDRMapLoc = glGetUniformLocation(m_hdrtocubemapProgram, "isUseHDRMap");
+    glUniform1i(useHDRMapLoc, HDRTextureId != 0 ? 1 : 0);
+    glCheckError_("glw",694);
+    // bind Texture
+    // Activate and bind the hdr texture
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, HDRTextureId);
 
-    //glMatrixMode(GL_MODELVIEW);
-   // glLoadIdentity();
+    glUniform1i(glGetUniformLocation(m_hdrtocubemapProgram, "equirectangularMap"), 3); // GL_TEXTURE2
+    glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+    //处理摄像机，上传当前摄像机的视图矩阵和透射矩阵和位置向量
+    glCheckError_("glw",703);
+    // GLint viewskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "view");
+    // glUniformMatrix4fv(viewskyLoc, 1, GL_FALSE, glm::value_ptr(captureViews[1]));
+    GLint projectionskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "projection");
+    glUniformMatrix4fv(projectionskyLoc, 1, GL_FALSE, glm::value_ptr(captureProjection));
+    // glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+    glBindFramebuffer(GL_FRAMEBUFFER, TextureManager::GetInstance().getFBO());
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        glCheckError_("glw",712);
+        GLint viewskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "view");
+        glUniformMatrix4fv(viewskyLoc, 1, GL_FALSE, glm::value_ptr(captureViews[i]));
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, TextureManager::GetInstance().getSkyBoxCubeMap(), 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glCheckError_("glw",716);
+        m_cuskybox->draw(m_hdrtocubemapProgram);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glCheckError_("glw",720);
+    // glUseProgram(0);
+    // 遍历所有物体并调用其绘制函数
+    // m_cuskybox->draw(m_hdrtocubemapProgram);
+    /*glUseProgram(m_objectProgram);
+    for (auto&[key,obj] : m_objects) {
+        obj->draw(m_objectProgram);
+    }*/
+    glUseProgram(0);
+    glDepthFunc(GL_LEQUAL); // 让天空盒在最远
+    glUseProgram(m_skyboxProgram);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, TextureManager::GetInstance().getSkyBoxCubeMap());
+    glUniform1i(glGetUniformLocation(m_skyboxProgram, "environmentMap"), 4);
+    glCheckError_("glw",748);
+     glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
+     m_cuskybox->setModelMatrix(model);
+    m_cuskybox->draw(m_skyboxProgram); // 绘制单位立方体作为天空盒
+    glCheckError_("glw",750);
+
+    glDepthFunc(GL_LESS); // 恢复默认深度测试
+    glUseProgram(0);
+}
+
+void GLWidget::drawAssimpPhong()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //处理灯光部分，设置ubo
+    // 计算总光源数量
+    int totalLights = m_lights.size();
+
+    size_t index = 0;
+
+    //先将m_lights所有数据转换为ShaderLight类型，调用模板函数
+
+    glUseProgram(m_assimploadProgram);
+    // 绑定 UBO
+    glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
+    GLenum error5 = glGetError();
+    if (error5 != GL_NO_ERROR) {
+        qCritical() << "5:" << error5;
+    }
+    // GLint beforeBinding;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &beforeBinding);
+    // std::cout << "Before binding UBO: " << beforeBinding << std::endl;
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo); // 强制绑定到 0
+
+    // GLint afterBinding;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &afterBinding);
+    // std::cout << "After binding UBO: " << afterBinding << std::endl;
+
+    GLint numLightsLoc = glGetUniformLocation(m_objectProgram, "numLights");
+    glUniform1i(numLightsLoc, totalLights);
+    // GLenum error6 = glGetError();//这里出错了，暂时注释掉
+    // if (error6 != GL_NO_ERROR) {
+    //     qCritical() << "6:" << error6;
+    // }
+
+    // 收集所有光源数据
+    for (const auto& pair : m_lights)
+    {
+        ShaderLight sl;
+        Light* light = pair.second;
+        switch (light->getLightType())
+        {
+        case Type::Point:
+        {//点光源
+            sl = convertToShaderLight(*static_cast<PointLight*>(light));
+            break;
+        }
+        case Type::Directional:
+        {//方向光源
+            sl = convertToShaderLight(*static_cast<DirectionalLight*>(light));
+            break;
+        }
+        case Type::Spot:
+        {//聚光灯
+            sl = convertToShaderLight(*static_cast<SpotLight*>(light));
+            break;
+        }
+        default:
+        {
+            cout<<"未知光源类型"<<endl;
+            break;
+        }
+        }
+        allLights[index] = sl;
+        ++index;
+    }
+    // cout<<"灯光数量是："<<totalLights<<endl;
+
+    // 更新 UBO 数据
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ShaderLight) * allLights.size(), allLights.data());
+    GLenum error7 = glGetError();
+    if (error7 != GL_NO_ERROR) {
+        qCritical() << "7:" << error7;
+    }
+    // GLint boundUBO;
+    // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &boundUBO);
+    // std::cout << "Currentpaint UBO Binding: " << boundUBO << std::endl;
+    // 解绑 UBO
+    glBindBuffer(GL_UNIFORM_BUFFER,0);
+
+    //处理摄像机，上传当前摄像机的视图矩阵和透射矩阵和位置向量
+    GLint viewLoc = glGetUniformLocation(m_assimploadProgram, "view");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
+    GLint projectionLoc = glGetUniformLocation(m_assimploadProgram, "projection");
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
+    GLint camerapositionLoc = glGetUniformLocation(m_assimploadProgram, "viewPos");
+    glUniform3fv(camerapositionLoc, 1, glm::value_ptr(m_currentCamera->getCameraPosition()));
+    // 遍历所有物体并调用其绘制函数
+    glUseProgram(m_assimploadProgram);
+    for (auto&[key,obj] : m_objects) {
+        obj->draw(m_assimploadProgram);
+    }
+    //渲染所有assimp导入的mesh物体
+    for (auto& mesh : m_AssimpMeshs) {
+        mesh->draw(m_assimploadProgram);
+    }
+    glUseProgram(0);
 }
 
 GLenum GLWidget::glCheckError_(const char *file, int line)

@@ -28,6 +28,11 @@ endif()
 # 包含OpenCV头文件路径
 include_directories(${OPENCV_DIR}/install/include)
 
+#添加assimp资源导入库的头文件和库文件的路径
+include_directories(C:/Qt/6.5.3/assimp-5.4.3/assimp-5.4.3/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug/include)
+include_directories(C:/Qt/6.5.3/assimp-5.4.3/assimp-5.4.3/include)
+link_directories(C:/Qt/6.5.3/assimp-5.4.3/assimp-5.4.3/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug/bin)
+
 set(PROJECT_SOURCES
         ./sources/main.cpp
         ./sources/mainwindow.cpp
@@ -103,6 +108,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         headers/uilight.h
         sources/uilight.cpp
         sources/uilight.ui
+        headers/objects/hdrobject.h
+        sources/objects/hdrobject.cpp
+        sources/objects/mesh.cpp
+        headers/objects/mesh.h
 
 
 
@@ -149,7 +158,8 @@ target_link_libraries(simpleBlender PRIVATE ${OPENGL_LIBRARIES}
     )#glfw3
 target_link_libraries(simpleBlender PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Gui)
 target_link_libraries(simpleBlender PRIVATE ${OpenCV_LIBS})
-
+# 链接 Assimp 库
+target_link_libraries(simpleBlender PRIVATE assimp-5d)
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.

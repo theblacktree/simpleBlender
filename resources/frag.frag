@@ -40,12 +40,13 @@ out vec4 FragColor;    //最终输出颜色
 uniform sampler2D diffuseMap; // 漫反射贴图
 uniform sampler2D normalMap;  // 法线贴图
 uniform samplerCube cubeMap;  // 立方体贴图
-uniform sampler2D HDRMap;//hdr贴图equirectangularMap，一般是球形映射
+//uniform sampler2D HDRMap;//hdr贴图equirectangularMap，一般是球形映射
+
 // 贴图控制变量
 uniform bool isUseDiffuseMap;   // 是否有漫反射贴图
 uniform bool isUseNormalMap;    // 是否有法线贴图
 uniform bool isUseCubeMap;      // 是否有立方体贴图
-uniform bool isUseHDRMap;       // 是否有hdr贴图
+//uniform bool isUseHDRMap;       // 是否有hdr贴图
 
 uniform int numLights;
 uniform vec4 objectColor; // 包含透明度的颜色
@@ -55,9 +56,11 @@ uniform float roughness;// 粗糙度
 uniform float ior;// 折射率（IOR）
 const float PI = 3.14159265359;
 
-// 计算法线分布函数（GGX）
+/*法线分布函数，几何遮挡函数，菲涅尔方程是计算反射光的*/
+// 计算法线分布函数（GGX）D估算在受到表面粗糙度的影响下，朝向方向与半程向量一致的微平面的数量。
+//这是用来估算微平面的主要函数。
 float DistributionGGX(vec3 N, vec3 H, float roughness)
-{
+{//和learnopengl Trowbridge-Reitz GGX一致
     float a = roughness * roughness;
     float a2 = a * a;
     float NdotH = max(dot(N, H), 0.0);
@@ -74,7 +77,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
 float GeometrySchlickGGX(float NdotV, float roughness)
 {
     float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
+    float k = (r * r) / 8.0;//针对直接光照的重映射
 
     float num = NdotV;
     float denom = NdotV * (1.0 - k) + k;
@@ -82,7 +85,8 @@ float GeometrySchlickGGX(float NdotV, float roughness)
     return num / max(denom, 1e-5);
 }
 
-// 几何遮挡项（Smith 方法）
+// 几何遮挡项（Smith 方法）G描述了微平面自成阴影的属性。当一个平面相对比较粗糙的时候，
+//平面表面上的微平面有可能挡住其他的微平面从而减少表面所反射的光线。
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
     float NdotV = max(dot(N, V), 0.0);
@@ -93,10 +97,10 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     return ggx1 * ggx2;
 }
 
-// 菲涅尔方程（Schlick 近似）
+// 菲涅尔方程（Schlick 近似）F菲涅尔方程描述的是在不同的表面角下表面所反射的光线所占的比率
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+{//F0和金属度有关系，learnopengl写法，保证了金属和非金属的反射比率问题
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);//注意这里用的clamp是为了避免黑点
 }
 
 void main(void)
@@ -117,13 +121,13 @@ void main(void)
 
     vec4 baseColor = useObjectColor ? objectColor : aOutColor;
    // vec4 baseColor = vec4(0.8, 0.5, 0.2, 1.0f);//铜色
-    if (isUseDiffuseMap) {
+    if (isUseDiffuseMap)
+    {
         baseColor *= texture(diffuseMap, texCoord); // Sample the diffuse map
     }
-
     // 基础反射率
     vec3 F0 = vec3(0.04); // 非金属的基础反射率
-    F0 = mix(F0, baseColor.rgb, metallic);
+    F0 = mix(F0, baseColor.rgb, metallic);//F0用来计算菲涅尔方程
     vec3 Lo = vec3(0.0); // 最终光照结果
 
     for (int i = 0; i < min(numLights, 50); ++i)
@@ -137,7 +141,7 @@ void main(void)
             L = normalize(-lights[i].direction.xyz);
         } else if (lights[i].type == 0)
         { // 点光源
-            vec3 lightDir = lights[i].position.xyz - fragPos;
+            vec3 lightDir = lights[i].position.xyz - fragPos;//计算灯光到片段点的向量，和法线向量点乘出夹角cos值
             float distance = max(length(lightDir), 0.001);
             L = normalize(lightDir);
             attenuation = 1.0 / (lights[i].constant +
@@ -195,13 +199,14 @@ void main(void)
         // 菲涅尔方程
         vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-        // 计算镜面反射项
+        // 计算镜面反射项 Cook-Torrance BRDF
         vec3 numerator = D * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;//0.001避免除0错误
         vec3 specular = numerator / max(denominator, 1e-5);
 
         // 漫反射项
-        vec3 kD = vec3(1.0) - F; // 能量守恒
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS; // 能量守恒，假设入射光全部是由反射光和折射光组成
         kD *= 1.0 - metallic;
 
         float NdotL = max(dot(N, L), 0.0);
@@ -213,11 +218,14 @@ void main(void)
     }
 
     // 环境光（可选）
-    vec3 ambient = vec3(0.1) * baseColor.rgb;
+    float ao = 1.0;//模拟物体表面由于几何结构复杂（如缝隙、凹陷等）而导致的局部阴影效果，需要ao贴图
+    vec3 ambient = vec3(0.1) * baseColor.rgb * ao;
 
     // 最终颜色
     vec3 color = ambient + Lo;
-
+    //色调映射使Lo从LDR的值映射为HDR的值
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0/2.2));
     // Gamma 校正
     color = pow(color, vec3(1.0 / 2.2));
 

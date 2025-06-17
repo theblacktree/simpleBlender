@@ -1,101 +1,46 @@
-#include "uvsphere.h"
+#include "mesh.h"
 using namespace std;
-UVSphere::UVSphere()
+Mesh::Mesh(std::vector<Mesh::Vertex> vertices, vector<unsigned int> indices, std::vector<Mesh::AssimpTexture> textures)
 {
+    m_vertices = vertices;
+    m_indices = indices;
+    m_textures = textures;
+    /*在这里处理加载的纹理数据，因为纵使我知道每种纹理的数量，但是将不定量的纹理上传到着色器中并应用也是一件比较值得仔细考虑的事情
+暂时只输入一种纹理*/
 
 }
 
-vector<UVSphere::Vertex> UVSphere::createSphereVertices(float radius, int nLongitude, int mLatitude)
+void Mesh::initialize()
 {
-    vector<Vertex>vertices;
-    for (int latNumber = 0; latNumber <= mLatitude; ++latNumber)
+    for (int i = 0; i<m_textures.size(); ++i)
     {
-        float theta = latNumber * M_PI / mLatitude;
-        float sinTheta = std::sin(theta);
-        float cosTheta = std::cos(theta);
-
-        for (int longNumber = 0; longNumber <= nLongitude; ++longNumber)
+        if (m_textures[i].type == TextureType::DIFFUSE_MAP)
         {
-            float phi = longNumber * 2.0f * M_PI / nLongitude;
-            float sinPhi = std::sin(phi);
-            float cosPhi = std::cos(phi);
-
-            // 球面位置
-            float x = cosPhi * sinTheta;
-            float y = cosTheta;
-            float z = sinPhi * sinTheta;
-
-            // 世界空间位置
-            float px = radius * x;
-            float py = radius * y;
-            float pz = radius * z;
-
-            // 法线向量 = 单位球的位置归一化后就是法线
-            float nx = x;
-            float ny = y;
-            float nz = z;
-
-            // UV坐标（经纬映射）
-            float u = 1.0f - (float)longNumber / nLongitude;
-            float v = (float)latNumber / mLatitude;
-
-            // 构建 Tangent 和 Bitangent（基于 UV 导数方向）
-            glm::vec3 pos(x, y, z);
-            glm::vec2 uv(u, v);
-
-            // 切线方向：沿经度增加的方向（绕y轴旋转）
-            float dphi = 0.001f;
-            float next_phi = phi + dphi;
-            float sinNextPhi = std::sin(next_phi);
-            float cosNextPhi = std::cos(next_phi);
-            glm::vec3 tangent(
-                cosNextPhi * sinTheta - cosPhi * sinTheta,
-                0,
-                sinNextPhi * sinTheta - sinPhi * sinTheta
-                );
-            tangent = glm::normalize(tangent);
-
-            // 副切线方向：叉积
-            glm::vec3 bitangent = glm::normalize(glm::cross(pos, tangent));
-
-            Vertex vert;
-            vert.x = px; vert.y = py; vert.z = pz;
-            vert.r = 1.0f; vert.g = 1.0f; vert.b = 1.0f, vert.a = 1.0f; // 白色
-            vert.nx = nx; vert.ny = ny; vert.nz = nz;
-            vert.u = u; vert.v = v;
-            vert.tangentX = tangent.x; vert.tangentY = tangent.y; vert.tangentZ = tangent.z;
-            vert.bitangentX = bitangent.x; vert.bitangentY = bitangent.y; vert.bitangentZ = bitangent.z;
-            vertices.push_back(vert);
+            m_isUseDiffuseMap = true;
+            m_diffuseTextureId = m_textures[i].id;
+        }
+        else if (m_textures[i].type == TextureType::NORMAL_MAP)
+        {
+            m_isUseNormalMap = true;
+            m_normalTextureId = m_textures[i].id;
+        }
+        else if (m_textures[i].type == TextureType::SPECULAR_MAP)
+        {
+            specularTextureId = m_textures[i].id;
+        }
+        else if (m_textures[i].type == TextureType::ROUGHNESS_MAP)
+        {
+            m_roughnessTextureId = m_textures[i].id;
+        }
+        else//AO贴图
+        {
+            m_aoTextureId = m_textures[i].id;
         }
     }
-    return vertices;
-}
-
-std::vector<unsigned int> createSphereIndices(int nLongitude, int mLatitude)
-{
-    std::vector<unsigned int> indices;
-    for (int latNumber = 0; latNumber < mLatitude; ++latNumber)
+    for (int i = 0; i<m_textures.size(); ++i)
     {
-        for (int longNumber = 0; longNumber < nLongitude; ++longNumber)
-        {
-            int first = (latNumber * (nLongitude + 1)) + longNumber;
-            int second = first + nLongitude + 1;
 
-            indices.push_back(first);
-            indices.push_back(second);
-            indices.push_back(first + 1);
-
-            indices.push_back(second);
-            indices.push_back(second + 1);
-            indices.push_back(first + 1);
-        }
     }
-
-    return indices;
-}
-
-void UVSphere::initialize()
-{
     initializeOpenGLFunctions();
     // 确认存在有效的 OpenGL 上下文
     glCullFace(GL_BACK);  // 剔除背面
@@ -105,32 +50,27 @@ void UVSphere::initialize()
         qWarning() << "No current OpenGL context in Cube::initialize";
         return;
     }
-    //顶点
-    // GLfloat vertices[] = {
-    //     // 位置                    //颜色           //法线方向朝着面外侧    //UV坐标   //切线  //副切线
-    // };
-    m_vertices = createSphereVertices(m_radius, m_nLongitude, m_mLatitude);
-    m_indices = createSphereIndices(m_nLongitude, m_mLatitude);
-
-    // GLuint indices[] = {
-
-    // };
-    //calculateTangentBiTangent(vertices, indices, 24, 36);
+    recordError("mesh Draw Error line33 : ");
+    computeTangents(m_vertices, m_indices);
+    recordError("mesh Draw Error line35 : ");
     // 确保 OpenGL 上下文是当前的
     if (!QOpenGLContext::currentContext()->extraFunctions())
     {
         qCritical("OpenGL functions are not initialized.");
         return;
     }
+    recordError("mesh Draw Error line42 : ");
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
+    recordError("mesh Draw Error line45 : ");
     glGenBuffers(1, &m_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(Vertex), &m_vertices[0], GL_STATIC_DRAW);
+    recordError("mesh Draw Error line49: ");
     glGenBuffers(1, &m_ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size() * sizeof(unsigned int), &m_indices[0], GL_STATIC_DRAW );
-
+    recordError("mesh Draw Error line53 : ");
     recordError("buffer Error: ");
     //顶点坐标
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), NULL);
@@ -151,34 +91,35 @@ void UVSphere::initialize()
     glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(15 * sizeof(float)));
     glEnableVertexAttribArray(5);
     //变换矩阵
+    recordError("mesh Draw Error line74 : ");
     m_model = glm::identity<glm::mat4>();
-    // m_view = identity<mat4>();
-    // m_projection = identity<mat4>();
-    // m_view = translate(m_view, vec3(0.0f, 0.0f, -3.0f));
-    // m_projection  = perspective(radians(45.0f), 16.0f/9.0f, 0.1f, 100.0f);
     glBindVertexArray(0);
 }
 
-void UVSphere::draw(GLuint currentProgram)
+void Mesh::draw(GLuint currentProgram)
 {
+    initialize();
+    recordError("mesh Draw Error line74 : ");
     glBindVertexArray(m_vao);
-    recordError("paintGL bind Error: ");
+    recordError("mesh paintGL bind Error: ");
+    //对模型进行缩小
+    //m_model = glm::scale(m_model,glm::vec3(0.1f));
     GLint modelLoc = glGetUniformLocation(currentProgram, "amodel");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(m_model));
-
+    recordError("mesh modelLoc Draw Error line : ");
     GLint objectColorLoc = glGetUniformLocation(currentProgram, "objectColor");
     glUniform4fv(objectColorLoc, 1, glm::value_ptr(m_color));
-
+    recordError("mesh objcolorLoc Draw Error line : ");
     GLint useObjectColorLoc = glGetUniformLocation(currentProgram, "useObjectColor");
     glUniform1i(useObjectColorLoc, m_isUseObjectColor ? 1 : 0);
-
+    recordError("mesh useObjectColorLoc Draw Error line : ");
     GLint metallicLoc = glGetUniformLocation(currentProgram, "metallic");
     glUniform1f(metallicLoc, m_metallic);
     GLint roughnessLoc = glGetUniformLocation(currentProgram, "roughness");
     glUniform1f(roughnessLoc, m_roughness);
     GLint iorLoc = glGetUniformLocation(currentProgram, "ior");
     glUniform1f(iorLoc, m_ior);
-
+    recordError("mesh metallicLoc Draw Error line : ");
     //texture variety
     GLint useDiffuseMapLoc = glGetUniformLocation(currentProgram, "isUseDiffuseMap");
     glUniform1i(useDiffuseMapLoc, m_diffuseTextureId ? 1 : 0);
@@ -187,7 +128,7 @@ void UVSphere::draw(GLuint currentProgram)
     GLint useCubeMapLoc = glGetUniformLocation(currentProgram, "isUseCubeMap");
     glUniform1i(useCubeMapLoc, m_cubeTextureId ? 1 : 0);
     //follow is bing texture
-
+    recordError("mesh textureload Draw Error line : ");
     // bind Texture
     // Activate and bind the diffuse texture
     glActiveTexture(GL_TEXTURE0);
@@ -196,21 +137,34 @@ void UVSphere::draw(GLuint currentProgram)
     // Activate and bind the normal texture
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_normalTextureId);
-
+    recordError("mesh textureload Draw Error line110 : ");
     // Activate and bind the specular texture
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeTextureId);
-
-
-
+    recordError("mesh textureload Draw Error line : ");
+    //粗糙度
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, m_roughnessTextureId);
+    recordError("mesh textureload Draw Error line : ");
+    //AO
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, m_aoTextureId);
+    recordError("mesh textureload Draw Error line : ");
+    //高光贴图
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, specularTextureId);
+    recordError("mesh textureload Draw Error line : ");
     // Assuming you have a shader program that expects these textures in specific texture units
     glUniform1i(glGetUniformLocation(currentProgram, "diffuseMap"), 0); // GL_TEXTURE0
     glUniform1i(glGetUniformLocation(currentProgram, "normalMap"), 1);   // GL_TEXTURE1
     glUniform1i(glGetUniformLocation(currentProgram, "cubeMap"), 2); // GL_TEXTURE2
+    glUniform1i(glGetUniformLocation(currentProgram, "roughnessMap"), 3);   // GL_TEXTURE3
+    glUniform1i(glGetUniformLocation(currentProgram, "aoMap"), 4);   // GL_TEXTURE4
+    glUniform1i(glGetUniformLocation(currentProgram, "specularMap"), 5);   // GL_TEXTURE5
 
+    recordError("mesh textureload Draw Error line121 : ");
     glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, (void*)0);
-    recordError("uvsphere Draw Error: ");
+    recordError("mesh glDrawElements Error line : ");
 
     glBindVertexArray(0);
 }
-

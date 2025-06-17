@@ -1,20 +1,17 @@
-#version 430 core
-
-in vec3 TexCoords;
+#version 330 core
 out vec4 FragColor;
 
-uniform bool isUseHDRMap;       // 是否有hdr贴图
-uniform sampler2D equirectangularMap;//hdr的贴图
+in vec3 localPos;
 
-vec2 SampleSphericalMap(vec3 v) {
-    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
-    uv *= vec2(0.1591, 0.3183); // 1/(2*PI), 1/PI
-    uv += 0.5;
-    return uv;
-}
+uniform samplerCube environmentMap;
 
-void main() {
-    vec2 uv = SampleSphericalMap(normalize(TexCoords));
-    vec3 color = texture(equirectangularMap, uv).rgb;
-    FragColor = vec4(color, 1.0);
+void main()
+{
+    vec3 envColor = texture(environmentMap, localPos).rgb;
+
+    envColor = envColor / (envColor + vec3(1.0));
+    envColor = pow(envColor, vec3(1.0/2.2));
+
+   FragColor = vec4(envColor, 1.0);
+    //FragColor = vec4(0.7,0.3,0.5, 1.0);
 }

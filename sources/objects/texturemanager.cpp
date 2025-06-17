@@ -3,7 +3,8 @@
 TextureManager::TextureManager()
 {
     m_hdrTexturePair = std::make_unique<std::pair<std::wstring, GLuint>>(L"", 0);
-
+    m_resolution = 512;
+    initTexBuffers();
 }
 TextureManager::~TextureManager() {}
 
@@ -77,6 +78,70 @@ bool TextureManager::load2DTexture(const std::wstring& filePath, TextureType typ
     else
         m_normalTextures[filePath] = texture;
     return true;
+}
+
+GLuint TextureManager::load2DAssimpTexture(const std::string &filePath, TextureType type)
+{
+    if ( m_assimpTexturesLoaded.find(filePath) != m_assimpTexturesLoaded.end())
+    {
+        std::cout << "normalTexture already loaded: " << filePath << std::endl;
+        return m_assimpTexturesLoaded[filePath]->getId();
+    }
+    const std::filesystem::path fsPath( filePath );
+
+    // Open the file as a binary stream
+    std::ifstream file(fsPath, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filePath << std::endl;
+        return false;
+    }
+
+    // Get the file size
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Read the file into a buffer
+    std::vector<char> buffer(size);
+    if (!file.read(buffer.data(), size)) {
+        std::cerr << "Failed to read file: " << filePath << std::endl;
+        return false;
+    }
+
+    // Decode the image from the buffer
+    cv::Mat image = cv::imdecode(cv::Mat(buffer), cv::IMREAD_UNCHANGED);
+    if (image.empty()) {
+        std::cerr << "Failed to decode image: " << filePath << std::endl;
+    }
+    // 转换为 RGBA 格式
+    if (image.channels() == 3) {
+        cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+    } else if (image.channels() == 4) {
+        cv::cvtColor(image, image, cv::COLOR_BGRA2RGBA);
+    }
+    cv::flip(image, image, 0); // 0 表示绕 x 轴翻转
+    // 创建新的 Texture 对象
+    auto texture = std::make_shared<Texture>(type);
+
+    glGenTextures(1, &(texture->getId()));
+    glBindTexture(GL_TEXTURE_2D, texture->getId());
+
+    // 设置纹理参数
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // 将 OpenCV 数据上传到 GPU
+    GLenum format = (image.channels() == 4) ? GL_RGBA : GL_RGB;
+    glTexImage2D(GL_TEXTURE_2D, 0, format, image.cols, image.rows, 0, format, GL_UNSIGNED_BYTE, image.data);
+
+    // 设置纹理数据
+    texture->setTextureData(texture->getId(), image.cols, image.rows);
+
+    // 保存纹理
+    m_assimpTexturesLoaded[filePath] = texture;
+   // std::cout<<m_assimpTexturesLoaded.size()<<std::endl;
+    return texture->getId();
 }
 
 bool TextureManager::loadCubeMap(const std::wstring cubeMapFiles[]) {
@@ -219,7 +284,7 @@ bool TextureManager::loadHDRMap(const std::wstring &filePath)
 
     m_hdrTexturePair->first = filePath;
     m_hdrTexturePair->second = textureID;
-   // glBindTexture(GL_TEXTURE_2D, 0); // 解绑纹理
+    //glBindTexture(GL_TEXTURE_2D, 0); // 解绑纹理
     //在这里还得计算辐射度贴图 Irradiance Map、预过滤环境贴图 Prefiltered Environment Map 和 BRDF 查找表 BRDF LUT）
 //首先创建立方体贴图以生成天空盒
     // std::vector<cv::Mat> cubemapFaces;
@@ -250,31 +315,12 @@ bool TextureManager::loadHDRMap(const std::wstring &filePath)
     //     cv::imwrite("cubemap_face_" + std::to_string(i) + ".png", imgForSave);
     // }
     // uploadCubemapToOpenGL(cubemapFaces, m_textureSkyBoxCubemap);
-//create cubemap
-    GLuint cubemapTexture;
-    glGenTextures(1, &cubemapTexture);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
-    int resolution = 512; // 设置立方体贴图分辨率
-    for (unsigned int i = 0; i < 6; ++i)
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, resolution, resolution, 0, GL_RGB, GL_FLOAT, nullptr);
 
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP); // 可选：生成mipmap
-//create FBO to render face by face
-    GLuint captureFBO, captureRBO;
-    glGenFramebuffers(1, &captureFBO);
-    glGenRenderbuffers(1, &captureRBO);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, resolution, resolution);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+
+
     return true;
 }
 // 将经纬度坐标转换为立方体面上的坐标
@@ -369,7 +415,60 @@ void TextureManager::uploadCubemapToOpenGL(const std::vector<cv::Mat>& cubemapFa
     // 解绑纹理
    // glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
-GLuint TextureManager::getHDRTextureId()
+
+void TextureManager::initTexBuffers()
 {
-    return m_hdrTexturePair->second;
+    //create cubemap
+    glCheckError_("tex",358);
+    glGenTextures(1, &m_textureSkyBoxCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_textureSkyBoxCubemap);
+    glCheckError_("tex",361);
+    //create FBO to render face by face
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        glCheckError_("tex",364);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, m_resolution, m_resolution, 0, GL_RGB, GL_FLOAT, nullptr);
+        glCheckError_("tex",367);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glewInit();
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP); // 可选：生成mipmap
+    glCheckError_("tex",376);
+    //创建帧缓冲区
+    glGenFramebuffers(1, &m_captureFBO);
+    glGenRenderbuffers(1, &m_captureRBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, m_captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_resolution, m_resolution);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_captureRBO);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    }
+    glCheckError_("tex",388);
+}
+
+GLenum TextureManager::glCheckError_(const char *file, int line)
+{
+    GLenum errorCode;
+    while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        std::string error;
+        switch (errorCode)
+        {
+        case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+        case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+        case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+        case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+        case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+        case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+        case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        std::cout << error << " | " << file << " (" << line << ")" << std::endl;
+    }
+    return errorCode;
 }

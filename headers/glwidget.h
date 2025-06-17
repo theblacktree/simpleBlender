@@ -16,8 +16,14 @@
 #include "object.h"
 #include "light.h"
 #include "Camera.h"
+#include "cube.h"
+#include "hdrobject.h"
 #include <opencv2/opencv.hpp>
 #include "texturemanager.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include "mesh.h"
 #define MAX_LIGHTS 50
 
 class MainWindow;
@@ -52,10 +58,23 @@ public:
 
     //更新物体/灯光/摄像机的名称
     void renameOneItem(const std::string oldStr, const std::string newStr);
+
+    //下面是模型加载的函数
+    //加载模型用的函数，
+    void loadAssimpModel(std::string path);
+    void processAssimpNode(aiNode *node, const aiScene *scene);
+    Mesh *processAssimpMesh(aiMesh *mesh, const aiScene *scene);
+    std::vector<Mesh::AssimpTexture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, TextureType typeEnumId);
 protected:
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
+
+    void drawPBR();
+
+    void drawPBRIBL();
+
+    void drawAssimpPhong();
 
 private slots:
     //删除所有选中的物体，包括物体，灯光，摄像机等
@@ -85,7 +104,11 @@ private:
     std::unordered_map<std::string, Object*> m_objects; // 物体类物体列表
     std::map<std::string, Light*> m_lights; // 灯光类物体列表
     std::map<std::string, Camera*> m_cameras; // 摄像机类物体列表
+    //模型加载的mesh物体
+    std::set< Mesh*> m_AssimpMeshs; // 网格类物体列表
+    std::string m_assimpdirectory;//加载模型的目录
     MainWindow *m_mainWindow;
+    HDRObject* m_cuskybox;//测试hdr天空盒用
 
 private:
     QString m_objectVertexPath = ":/cube/vertex.vert";
@@ -96,13 +119,32 @@ private:
     QString m_skyboxFragmentPath = ":/skybox/skybox.frag";
     GLuint m_skyboxProgram;
 
+    QString m_hdrtocubemapVertexPath = ":/hdrTocubemap.vert";
+    QString m_hdrtocubemapFragmentPath = ":/hdrTocubemap.frag";
+    GLuint m_hdrtocubemapProgram;
+
+    //assimp用的bliphone贴图
+    QString m_assimploadVertexPath = ":/assimpload.vert";
+    QString m_assimploadFragmentPath = ":/assimpload.frag";
+    GLuint m_assimploadProgram;
+
     std::vector<ShaderLight> allLights;
     //维护一个当前视角的摄像机
     Camera* m_defaultCamera;
     Camera* m_currentCamera;
-
+    //上传灯光属性用的uniform buffer
     GLuint m_ubo;
-
+    //hdr渲染用
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f / 1.0f, 0.1f, 10.0f);
+    std::vector<glm::mat4> captureViews =
+        {
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+        };
 };
 template<typename T>
 T GLWidget::queryLastItem(std::string &strLastItemName)

@@ -7,9 +7,15 @@
 #include <memory>
 
 enum class TextureType {
-    DIFFUSE_MAP,
-    NORMAL_MAP,
-    CUBE_MAP
+    DIFFUSE_MAP,     //漫反射贴图
+    NORMAL_MAP,     //法线贴图
+    CUBE_MAP,      //立方体贴图
+    SPECULAR_MAP,  //高光贴图
+    HEIGHT_MAP,   //高度贴图
+    AMBIENT_MAP,   //环境光贴图
+    ROUGHNESS_MAP, //粗糙度贴图
+    AO_MAP         //环境遮蔽贴图
+
 };
 class Texture {
 

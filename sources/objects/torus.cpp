@@ -20,7 +20,7 @@ vector<Torus::Vertex>Torus:: createTorusVertices(float R, float r, int radialSeg
             float cz = r * sin(phi);
             vert.x = cx, vert.y = cy, vert.z = cz;
             //颜色
-            vert.r = 1.0f; vert.g = 1.0f; vert.b = 1.0f;
+            vert.r = 1.0f; vert.g = 1.0f; vert.b = 1.0f, vert.a = 1.0f;
             // 计算法线
             float nx = cos(phi) * cos(theta);
             float ny = cos(phi) * sin(theta);
@@ -101,22 +101,22 @@ void Torus::initialize()
 
     recordError("buffer Error: ");
     //顶点坐标
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 17 * sizeof(float), NULL);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), NULL);
     glEnableVertexAttribArray(0);
     //颜色
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 17 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     //法线坐标
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 17 * sizeof(float), (void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
     //uv纹理坐标
-    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 17 * sizeof(float), (void*)(9 * sizeof(float)));
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(10 * sizeof(float)));
     glEnableVertexAttribArray(3);
     //顶点切线
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 17 * sizeof(float), (void*)(11 * sizeof(float)));
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(12 * sizeof(float)));
     glEnableVertexAttribArray(4);
     //顶点副切线
-    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 17 * sizeof(float), (void*)(14 * sizeof(float)));
+    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 18 * sizeof(float), (void*)(15 * sizeof(float)));
     glEnableVertexAttribArray(5);
     //变换矩阵
     m_model = glm::identity<glm::mat4>();
@@ -177,7 +177,7 @@ void Torus::draw(GLuint currentProgram)
     glUniform1i(glGetUniformLocation(currentProgram, "cubeMap"), 2); // GL_TEXTURE2
 
     glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, (void*)0);
-    recordError("cube Draw Error: ");
+    recordError("torus Draw Error: ");
 
     glBindVertexArray(0);
 }

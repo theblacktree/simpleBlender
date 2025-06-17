@@ -1,6 +1,10 @@
 <RCC>
     <qresource prefix="/">
         <file>night.qss</file>
+        <file>hdrTocubemap.vert</file>
+        <file>hdrTocubemap.frag</file>
+        <file>assimpload.vert</file>
+        <file>assimpload.frag</file>
     </qresource>
     <qresource prefix="/cube">
         <file>frag.frag</file>
@@ -10,4 +14,5 @@
         <file>skybox.vert</file>
         <file>skybox.frag</file>
     </qresource>
+    <qresource prefix="/assimpload"/>
 </RCC>
