@@ -29,6 +29,8 @@ GLWidget::GLWidget(MainWindow* mainWindow, QWidget *parent) : QOpenGLWidget(pare
 
     connect(m_mainWindow, &MainWindow::sigCreateHDRMap, this, &GLWidget::slotCreateHDRMAP);
     m_cuskybox = new HDRObject;
+    m_roomBox = new cube;
+
 }
 
 GLWidget::~GLWidget()
@@ -279,55 +281,55 @@ cv::Mat GLWidget::captureFrame()
     return image.clone(); // 返回深拷贝，避免临时变量销毁
 }
 
-void GLWidget::addShader(QString &vertexPath, QString &fragmentPath, GLuint &vertexShader, GLuint &fragmentShader)
+void GLWidget::addShader(QString &shaderPath, /*QString &fragmentPath,*/ GLuint &Shader, unsigned int shaderType/*, GLuint &fragmentShader*/)
 {
     //着色器
     // 加载顶点着色器文件
-    QFile vertfile(vertexPath);
+    QFile vertfile(shaderPath);
     if (!vertfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        throw std::runtime_error("Failed to open shader file: " + vertexPath.toStdString());
+        throw std::runtime_error("Failed to open shader file: " + shaderPath.toStdString());
     }
     QTextStream vertin(&vertfile);
     std::string vertexSource = vertin.readAll().toStdString();
     vertfile.close();
 
-    // 加载片段着色器文件
-    QFile fragfile(fragmentPath);
-    if (!fragfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        throw std::runtime_error("Failed to open shader file: " + fragmentPath.toStdString());
-    }
-    QTextStream fragin(&fragfile);
-    std::string fragmentSource = fragin.readAll().toStdString();
-    fragfile.close();
+    // // 加载片段着色器文件
+    // QFile fragfile(fragmentPath);
+    // if (!fragfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    //     throw std::runtime_error("Failed to open shader file: " + fragmentPath.toStdString());
+    // }
+    // QTextStream fragin(&fragfile);
+    // std::string fragmentSource = fragin.readAll().toStdString();
+    // fragfile.close();
 
     // 创建并编译顶点着色器
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    Shader = glCreateShader(shaderType);//GL_VERTEX_SHADER
     const char* vertexSrc = vertexSource.c_str();
-    glShaderSource(vertexShader, 1, &vertexSrc, nullptr);
-    glCompileShader(vertexShader);
+    glShaderSource(Shader, 1, &vertexSrc, nullptr);
+    glCompileShader(Shader);
 
     // 检查顶点着色器编译错误
     int success;
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(Shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         char infoLog[512];
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        throw std::runtime_error("Vertex shader compilation failed: " + std::string(infoLog));
+        glGetShaderInfoLog(Shader, 512, nullptr, infoLog);
+        throw std::runtime_error("shader compilation failed: " + std::string(infoLog));
     }
 
-    // 创建并编译片段着色器
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    const char* fragmentSrc = fragmentSource.c_str();
-    glShaderSource(fragmentShader, 1, &fragmentSrc, nullptr);
-    glCompileShader(fragmentShader);
+    // // 创建并编译片段着色器
+    // fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    // const char* fragmentSrc = fragmentSource.c_str();
+    // glShaderSource(fragmentShader, 1, &fragmentSrc, nullptr);
+    // glCompileShader(fragmentShader);
 
-    // 检查片段着色器编译错误
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        throw std::runtime_error("Fragment shader compilation failed: " + std::string(infoLog));
-    }
+    // // 检查片段着色器编译错误
+    // glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    // if (!success) {
+    //     char infoLog[512];
+    //     glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
+    //     throw std::runtime_error("Fragment shader compilation failed: " + std::string(infoLog));
+    // }
 }
 
 void GLWidget::renameOneItem(const std::string oldStr, const std::string newStr)
@@ -351,6 +353,16 @@ void GLWidget::renameOneItem(const std::string oldStr, const std::string newStr)
     {
 
     }
+}
+
+void GLWidget::addCubeMap(std::string currentItemText, std::string filePath, TextureType textureType)
+{
+    if (textureType == TextureType::CUBE_MAP)
+    {
+        TextureManager::GetInstance().loadCubeMap(filePath);
+        m_objects[currentItemText]->setCubeTexture(TextureManager::GetInstance().getcubemapTexture(filePath)->getId());
+    }
+
 }
 //加载assimp模型
 void GLWidget::loadAssimpModel(std::string path)
@@ -563,9 +575,7 @@ void GLWidget::slotSetObjecxtUVTexture(const std::string &selectedString, std::w
     if (textureType == TextureType::DIFFUSE_MAP)
         m_objects[selectedString]->setDiffuseTexture(TextureManager::GetInstance().getTexture(textureFilePath)->getId());
     else if (textureType == TextureType::NORMAL_MAP)
-        m_objects[selectedString]->setNormalTexture(TextureManager::GetInstance().getTexture(textureFilePath)->getId());
-    else if (textureType == TextureType::CUBE_MAP)
-        m_objects[selectedString]->setCubeTexture(TextureManager::GetInstance().getTexture(textureFilePath)->getId());
+        m_objects[selectedString]->setNormalTexture(TextureManager::GetInstance().getTexture(textureFilePath)->getId()); 
     else
     {
 
@@ -599,7 +609,9 @@ void GLWidget::initializeGL()
     glDisable(GL_CULL_FACE);
     glEnable(GL_MULTISAMPLE);
    // glDepthMask(GL_FALSE);
+    glCheckError_("glwidget",604);
     m_cuskybox->initialize();
+    m_roomBox->initialize();
     for (auto&[key,obj] : m_objects) {
         obj->initialize();
     }
@@ -607,42 +619,52 @@ void GLWidget::initializeGL()
     for (auto& mesh : m_AssimpMeshs) {
         mesh->initialize();
     }
-
+glCheckError_("glwidget",614);
 
     // 创建并链接着色器程序
     //渲染物体的pbr着色器
     m_objectProgram = glCreateProgram();
     GLuint objectVertexShader;
     GLuint objectFragmentShader;
-    addShader(m_objectVertexPath, m_objectFragmentPath, objectVertexShader, objectFragmentShader);
+    GLuint lightGeomitryShader;//用于计算阴影的几何着色器
+    addShader(m_objectVertexPath, objectVertexShader, GL_VERTEX_SHADER);
+    addShader(m_objectFragmentPath, objectFragmentShader, GL_FRAGMENT_SHADER);
     glAttachShader(m_objectProgram, objectVertexShader);
     glAttachShader(m_objectProgram, objectFragmentShader);
     glLinkProgram(m_objectProgram);
+    glCheckError_("glwidget",625);
     //渲染物体的天空盒着色器
     m_skyboxProgram = glCreateProgram();
     GLuint skyboxVertexShader;
     GLuint skyboxFragmentShader;
-    addShader(m_skyboxVertexPath, m_skyboxFragmentPath, skyboxVertexShader, skyboxFragmentShader);
+    addShader(m_skyboxVertexPath, skyboxVertexShader, GL_VERTEX_SHADER);
+    addShader(m_skyboxFragmentPath,  skyboxFragmentShader, GL_FRAGMENT_SHADER);
     glAttachShader(m_skyboxProgram, skyboxVertexShader);
     glAttachShader(m_skyboxProgram, skyboxFragmentShader);
     glLinkProgram(m_skyboxProgram);
+    glCheckError_("glwidget",634);
     //将hdr转换为立方体贴图的着色器
     m_hdrtocubemapProgram = glCreateProgram();
     GLuint hdrtocubemapVertexShader;
     GLuint hdrtocubemapFragmentShader;
-    addShader(m_hdrtocubemapVertexPath, m_hdrtocubemapFragmentPath, hdrtocubemapVertexShader, hdrtocubemapFragmentShader);
+    addShader(m_hdrtocubemapVertexPath,  hdrtocubemapVertexShader, GL_VERTEX_SHADER);
+    addShader(m_hdrtocubemapFragmentPath,hdrtocubemapFragmentShader, GL_FRAGMENT_SHADER);
     glAttachShader(m_hdrtocubemapProgram, hdrtocubemapVertexShader);
     glAttachShader(m_hdrtocubemapProgram, hdrtocubemapFragmentShader);
     glLinkProgram(m_hdrtocubemapProgram);
+    glCheckError_("glwidget",643);
     //assimpbli-phone着色器
     m_assimploadProgram = glCreateProgram();
     GLuint assimploadVertexShader;
     GLuint assimploadFragmentShader;
-    addShader(m_assimploadVertexPath, m_assimploadFragmentPath, assimploadVertexShader, assimploadFragmentShader);
+    addShader(m_assimploadVertexPath, assimploadVertexShader, GL_VERTEX_SHADER);
+    addShader( m_assimploadFragmentPath, assimploadFragmentShader, GL_FRAGMENT_SHADER);
     glAttachShader(m_assimploadProgram, assimploadVertexShader);
     glAttachShader(m_assimploadProgram, assimploadFragmentShader);
     glLinkProgram(m_assimploadProgram);
+    glCheckError_("glwidget",652);
 
+    //创建阴影映射所需要的几何着色器
 
 
     // 检查程序链接错误
@@ -653,6 +675,15 @@ void GLWidget::initializeGL()
         glGetProgramInfoLog(m_objectProgram, 512, nullptr, infoLog);
         throw std::runtime_error("Shader program linking failed: " + std::string(infoLog));
     }
+
+    int successskybox;
+    glGetProgramiv(m_skyboxProgram, GL_LINK_STATUS, &successskybox);
+    if (!successskybox) {
+        char infoLog[512];
+        glGetProgramInfoLog(m_skyboxProgram, 512, nullptr, infoLog);
+        throw std::runtime_error("Shader program linking failed: " + std::string(infoLog));
+    }
+    glCheckError_("glwidget",671);
   //  glUseProgram(m_ubo);
     glUseProgram(m_objectProgram);
 
@@ -661,6 +692,8 @@ void GLWidget::initializeGL()
     if (error != GL_NO_ERROR) {
         qCritical() << "1:" << error;
     }
+    //在这里初始化万向点阴影映射所需要的立方体贴图和深度帧缓冲
+    TextureManager::GetInstance().initDotLightDepthCubeMap();
     // 分配内存并上传初始数据
      // 初始化光源数组
     for (int i = 0; i < MAX_LIGHTS; ++i) {
@@ -708,6 +741,7 @@ void GLWidget::initializeGL()
     // 解绑缓冲区
    glBindBuffer(GL_UNIFORM_BUFFER, 0);
     glUseProgram(0);
+   glCheckError_("glwidget",727);
     //重复绑定ubo到assimpbliphone着色器
    glUseProgram(m_assimploadProgram);
 
@@ -717,6 +751,7 @@ void GLWidget::initializeGL()
    for (int i = 0; i < MAX_LIGHTS; ++i) {
        initShaderLight(allLights[i]);
    }
+   glCheckError_("glwidget",737);
    // 在链接着色器程序后添加：
    cout<<"m_ubo在绑定前的值为："<<m_ubo<<endl;
    glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
@@ -735,6 +770,7 @@ void GLWidget::initializeGL()
    } else {
        qCritical() << "LightBlock not found in shader!";
    }
+   glCheckError_("glwidget",756);
    // 解绑缓冲区
    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
@@ -749,15 +785,16 @@ void GLWidget::initializeGL()
    glDeleteShader(assimploadFragmentShader);
 
    glUseProgram(0);
+    glCheckError_("glwidget",771);
 }
 
 void GLWidget::paintGL()
 {
-    //if (TextureManager::GetInstance().getHDRTextureId() == 0)
-        drawPBR();
+    // if (TextureManager::GetInstance().getHDRTextureId() == 0)
+       //drawPBR();
    // else
-        //drawPBRIBL();
-        //drawAssimpPhong();
+   //      drawPBRIBL();
+        drawAssimpPhong();
 
 }
 
@@ -783,13 +820,13 @@ void GLWidget::resizeGL(int w, int h)
 void GLWidget::drawPBR()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    glCheckError_("glwidget",806);
     glUseProgram(m_hdrtocubemapProgram);
     //上传HDR贴图
     GLuint HDRTextureId = TextureManager::GetInstance().getHDRTextureId();
     GLint useHDRMapLoc = glGetUniformLocation(m_hdrtocubemapProgram, "isUseHDRMap");
     glUniform1i(useHDRMapLoc, HDRTextureId ? 1 : 0);
-
+    glCheckError_("glwidget",812);
     // bind Texture
     // Activate and bind the diffuse texture
     glActiveTexture(GL_TEXTURE3);
@@ -797,7 +834,7 @@ void GLWidget::drawPBR()
 
     glUniform1i(glGetUniformLocation(m_hdrtocubemapProgram, "equirectangularMap"), 3); // GL_TEXTURE2
     glUseProgram(0);
-
+    glCheckError_("glwidget",820);
     //处理灯光部分，设置ubo
     // 计算总光源数量
     int totalLights = m_lights.size();
@@ -807,6 +844,7 @@ void GLWidget::drawPBR()
     //先将m_lights所有数据转换为ShaderLight类型，调用模板函数
 
     glUseProgram(m_objectProgram);
+    glCheckError_("glwidget",830);
     // 绑定 UBO
     glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
     GLenum error5 = glGetError();
@@ -818,18 +856,18 @@ void GLWidget::drawPBR()
     // std::cout << "Before binding UBO: " << beforeBinding << std::endl;
 
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo); // 强制绑定到 0
-
+    glCheckError_("glwidget",833);
     // GLint afterBinding;
     // glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &afterBinding);
     // std::cout << "After binding UBO: " << afterBinding << std::endl;
-
+    glCheckError_("glwidget",846);
     GLint numLightsLoc = glGetUniformLocation(m_objectProgram, "numLights");
     glUniform1i(numLightsLoc, totalLights);
     GLenum error6 = glGetError();
     if (error6 != GL_NO_ERROR) {
         qCritical() << "6:" << error6;
     }
-
+    glCheckError_("glwidget",853);
     // 收集所有光源数据
     for (const auto& pair : m_lights)
     {
@@ -861,6 +899,7 @@ void GLWidget::drawPBR()
         allLights[index] = sl;
         ++index;
     }
+    glCheckError_("glwidget",885);
     // cout<<"灯光数量是："<<totalLights<<endl;
 
     // 更新 UBO 数据
@@ -874,6 +913,49 @@ void GLWidget::drawPBR()
     // std::cout << "Currentpaint UBO Binding: " << boundUBO << std::endl;
     // 解绑 UBO
     glBindBuffer(GL_UNIFORM_BUFFER,0);
+    glCheckError_("glwidget",899);
+
+    //在这里处理阴影部分。
+    // if (m_lights.size() >= 1)
+    // {
+    //     glBindFramebuffer(GL_FRAMEBUFFER, TextureManager::GetInstance().getDepthMapFBO());
+    //     glViewport(0, 0, constTextureDefine::SHADOW_WIDTH, constTextureDefine::SHADOW_HEIGHT);
+    //     glClear(GL_DEPTH_BUFFER_BIT);
+
+    //     glUseProgram(m_objectProgram);
+    //     // 不需要切换视图或重复绘制
+    //     //renderScene(); // 只需绘制一次，几何着色器自动处理六个面
+    //     // 在C++端将六个视图+投影矩阵传入着色器
+    //     GLfloat aspect = (GLfloat)constTextureDefine::SHADOW_WIDTH/(GLfloat)constTextureDefine::SHADOW_HEIGHT;
+    //     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, 1.0f, 25.0f);
+
+    //     std::vector<glm::mat4> shadowTransforms;
+    //     glm::vec3 lightPos = glm::vec3(allLights[0].position.x, allLights[0].position.y, allLights[0].position.z);
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(1.0,0.0,0.0), glm::vec3(0.0,-1.0,0.0)));
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(-1.0,0.0,0.0), glm::vec3(0.0,-1.0,0.0)));
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(0.0,1.0,0.0), glm::vec3(0.0,0.0,1.0)));
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(0.0,-1.0,0.0), glm::vec3(0.0,0.0,-1.0)));
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(0.0,0.0,1.0), glm::vec3(0.0,-1.0,0.0)));
+    //     shadowTransforms.push_back(shadowProj *
+    //                                glm::lookAt(lightPos, lightPos + glm::vec3(0.0,0.0,-1.0), glm::vec3(0.0,-1.0,0.0)));
+
+    //     GLint lightSpaceMatrixLoc = glGetUniformLocation(m_objectProgram, "shadowMatrices");
+    //     // shadowTransforms 是包含6个mat4的数组
+    //     glUniformMatrix4fv(lightSpaceMatrixLoc, 6, GL_FALSE, glm::value_ptr(shadowTransforms[0]));
+    //     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // }
+
+
+
+
+
+
+
 
     //处理摄像机，上传当前摄像机的视图矩阵和透射矩阵和位置向量
     GLint viewLoc = glGetUniformLocation(m_objectProgram, "aview");
@@ -882,9 +964,11 @@ void GLWidget::drawPBR()
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
     GLint camerapositionLoc = glGetUniformLocation(m_objectProgram, "acameraPosition");
     glUniform3fv(camerapositionLoc, 1, glm::value_ptr(m_currentCamera->getCameraPosition()));
+    glCheckError_("glwidget",907);
     // 遍历所有物体并调用其绘制函数
     if (TextureManager::GetInstance().getHDRTextureId() != 0)
     {
+        glCheckError_("glwidget",911);
         glUseProgram(m_hdrtocubemapProgram);
         GLint viewskyLoc = glGetUniformLocation(m_hdrtocubemapProgram, "view");
         glUniformMatrix4fv(viewskyLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
@@ -894,16 +978,43 @@ void GLWidget::drawPBR()
         // m_cuskybox->setModelMatrix(model);
         m_cuskybox->draw(m_hdrtocubemapProgram);
         glUseProgram(0);
+        glCheckError_("glwidget",922);
     }
-
+    // else if (TextureManager::GetInstance().getHDRTextureId() == 0)
+    // {
+    //     glCheckError_("glwidget",925);
+    //     if (TextureManager::GetInstance().getcubemapTexture("room") == nullptr)
+    //     {
+    //         TextureManager::GetInstance().loadCubeMap();
+    //     }
+    //     glDepthMask(GL_FALSE);//确保天空盒不会更新深度缓冲区，从而不会遮挡其他物体，同时提升渲染效率
+    //     //这时候在程序开始时设置一个有大小的天空盒
+    //     glUseProgram(m_objectProgram);
+    //     GLint viewskyLoc = glGetUniformLocation(m_objectProgram, "view");
+    //     glUniformMatrix4fv(viewskyLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getViewMatrix()));
+    //     GLint projectionskyLoc = glGetUniformLocation(m_objectProgram, "projection");
+    //     glUniformMatrix4fv(projectionskyLoc, 1, GL_FALSE, glm::value_ptr(m_currentCamera->getProjectionMatrix()));
+    //     m_roomBox->setCubeTexture(TextureManager::GetInstance().getcubemapTexture("room")->getId());
+    //     glm::vec3 translate = glm::vec3(0, 0, 0);
+    //     glm::vec3 rotate = glm::vec3(0, 0, 0);
+    //     glm::vec3 scale = glm::vec3(100, 100, 100);
+    //     m_roomBox->setModelMatrix(translate, rotate, scale);
+    //   //  m_roomBox->draw(m_objectProgram);
+    //     glUseProgram(0);
+    //     glDepthMask(GL_TRUE);
+    //     glCheckError_("glwidget",945);
+    // }
+    glCheckError_("glwidget",947);
     glUseProgram(m_objectProgram);
     for (auto&[key,obj] : m_objects) {
         obj->draw(m_objectProgram);
     }
+    glCheckError_("glwidget",952);
     //渲染所有assimp导入的mesh物体
     for (auto& mesh : m_AssimpMeshs) {
         mesh->draw(m_objectProgram);
     }
+    glCheckError_("glwidget",957);
     glUseProgram(0);
 }
 
@@ -1073,7 +1184,7 @@ GLenum GLWidget::glCheckError_(const char *file, int line)
     GLenum errorCode;
     while ((errorCode = glGetError()) != GL_NO_ERROR)
     {
-        std::string error;
+        std::string error = "opengl error";
         switch (errorCode)
         {
         case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
@@ -1083,6 +1194,7 @@ GLenum GLWidget::glCheckError_(const char *file, int line)
         case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
         case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
         case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        default:error = "unkown opengl error";break;
         }
         std::cout << error << " | " << file << " (" << line << ")" << std::endl;
     }

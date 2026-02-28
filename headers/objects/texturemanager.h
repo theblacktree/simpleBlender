@@ -9,13 +9,20 @@
 //#include "mesh.h"
 //#include <GL/gl.h>   // 使用系统自带的 OpenGL 库时
 //#include <qopenglext.h>
+namespace constTextureDefine
+{
+    const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+}
 class TextureManager {
 private:
     std::map<std::wstring, std::shared_ptr<Texture>> m_diffuseTextures;
     std::map<std::wstring, std::shared_ptr<Texture>> m_normalTextures;
-    std::map<std::wstring, std::shared_ptr<Texture>> m_cubeTextures;
+    std::map<std::string, std::shared_ptr<Texture>> m_cubeTextures;
     std::unique_ptr<std::pair<std::wstring, GLuint >> m_hdrTexturePair;//hdr载入
     std::map<std::string, std::shared_ptr<Texture>> m_assimpTexturesLoaded;//这个是assimp库加载的2d纹理,键是路径
+    GLuint m_depthCubemap;//光源的深度立方体贴图
+    GLuint m_depthMapFBO;
+
     GLuint m_textureSkyBoxCubemap;//立方体贴图天空盒,从hdr中解析而来
     int m_resolution = 512;
     //由hdr提取立方体贴图使用，提取6个面
@@ -34,15 +41,21 @@ public:
     // 加载 2D 纹理
     bool load2DTexture(const std::wstring &filePath, TextureType type);
 
-    // 加载立方体贴图
-    bool loadCubeMap(const std::wstring cubeMapFiles[6]);
+    // 加载默认的第一个立方体贴图，程序起来后创建
+    bool loadCubeMap(std::string filePath);
 
-    // 获取纹理
+    // 获取漫反射贴图和法线贴图纹理
     std::shared_ptr<Texture> getTexture(const std::wstring &filePath) const;
-
+    //获取cubemap贴图纹理
+    std::shared_ptr<Texture> getcubemapTexture(const std::string &filePath) const;
     //加载assimp纹理
     GLuint load2DAssimpTexture(const std::string &filePath, TextureType type);
 
+    //加载深度立方体贴图，用于光源的阴影
+    void initDotLightDepthCubeMap();
+    //获取深度立方体贴图和深度帧缓冲
+    GLuint getDepthCubeMap(){return m_depthCubemap;}
+    GLuint getDepthMapFBO(){return m_depthMapFBO;}
     // 释放所有资源
     void releaseAll() {
         m_diffuseTextures.clear();

@@ -9,6 +9,7 @@
     <qresource prefix="/cube">
         <file>frag.frag</file>
         <file>vertex.vert</file>
+        <file>geomitryshader.geom</file>
     </qresource>
     <qresource prefix="/skybox">
         <file>skybox.vert</file>

@@ -54,11 +54,12 @@ public:
     cv::Mat captureFrame();
 
     //添加着色器,2 arguments are in, last two arguments are out
-    void addShader(QString& vertexPath, QString& fragmentPath, GLuint& vertexShader, GLuint& fragmentShader);
+    void addShader(QString& vertexPath, GLuint& vertexShader, unsigned int shaderType);
 
     //更新物体/灯光/摄像机的名称
     void renameOneItem(const std::string oldStr, const std::string newStr);
-
+    //加载立方体贴图
+    void addCubeMap(std::string currentItemText, std::string filePath, TextureType textureType);
     //下面是模型加载的函数
     //加载模型用的函数，
     void loadAssimpModel(std::string path);
@@ -134,6 +135,7 @@ private:
     Camera* m_currentCamera;
     //上传灯光属性用的uniform buffer
     GLuint m_ubo;
+    cube* m_roomBox;
     //hdr渲染用
     glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f / 1.0f, 0.1f, 10.0f);
     std::vector<glm::mat4> captureViews =

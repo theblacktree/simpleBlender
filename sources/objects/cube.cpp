@@ -47,7 +47,7 @@ void cube::initialize()
         0.5f, -0.5f,  0.5f,  0.9f, 0.3f, 0.6f, 1.0f,  1.0f,  0.0f,  0.0f,     0, 0,  0, 0, 0,  0, 0, 0,    // 15 (重复 2)
 
         -0.5f,  0.5f,  0.5f, 0.4f, 0.5f, 0.6f, 1.0f,  0.0f,  1.0f,  0.0f,     0, 0,  0, 0, 0,  0, 0, 0, // 16 (重复 0)
-        0.5f,  0.5f,  0.5f,  0.4f, 0.5f, 0.6f, 1.0f,  0.0f,  1.0f,  0.0f,     1, 0,  0, 0, 0,  0, 0, 0,  // 17 (重复 1)
+        0.5f,  0.5f,   0.5f,  0.4f, 0.5f, 0.6f, 1.0f,  0.0f,  1.0f,  0.0f,     1, 0,  0, 0, 0,  0, 0, 0,  // 17 (重复 1)
         0.5f,  0.5f, -0.5f,  0.4f, 0.5f, 0.6f, 1.0f,  0.0f,  1.0f,  0.0f,     1, 1,  0, 0, 0,  0, 0, 0,  // 18 (重复 5)
         -0.5f,  0.5f, -0.5f, 0.4f, 0.5f, 0.6f, 1.0f,  0.0f,  1.0f,  0.0f,     0, 1,  0, 0, 0,  0, 0, 0,  // 19 (重复 4)
 
@@ -121,26 +121,26 @@ void cube::initialize()
 }
 
 void cube::draw(GLuint currentProgram)
-{
+{recordError("cube7 Draw Error: ");
     //glUseProgram(currentProgram);
     glBindVertexArray(m_vao);
     recordError("paintGL bind Error: ");
     GLint modelLoc = glGetUniformLocation(currentProgram, "amodel");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(m_model));
-
+    recordError("cube6 Draw Error: ");
     GLint objectColorLoc = glGetUniformLocation(currentProgram, "objectColor");
     glUniform4fv(objectColorLoc, 1, glm::value_ptr(m_color));
 
     GLint useObjectColorLoc = glGetUniformLocation(currentProgram, "useObjectColor");
     glUniform1i(useObjectColorLoc, m_isUseObjectColor ? 1 : 0);
-
+    recordError("cube5 Draw Error: ");
     GLint metallicLoc = glGetUniformLocation(currentProgram, "metallic");
     glUniform1f(metallicLoc, m_metallic);
     GLint roughnessLoc = glGetUniformLocation(currentProgram, "roughness");
     glUniform1f(roughnessLoc, m_roughness);
     GLint iorLoc = glGetUniformLocation(currentProgram, "ior");
     glUniform1f(iorLoc, m_ior);
-
+    recordError("cube4 Draw Error: ");
     //texture variety
     GLint useDiffuseMapLoc = glGetUniformLocation(currentProgram, "isUseDiffuseMap");
     glUniform1i(useDiffuseMapLoc, m_diffuseTextureId ? 1 : 0);
@@ -149,7 +149,7 @@ void cube::draw(GLuint currentProgram)
     GLint useCubeMapLoc = glGetUniformLocation(currentProgram, "isUseCubeMap");
     glUniform1i(useCubeMapLoc, m_cubeTextureId ? 1 : 0);
     //follow is bing texture
-
+    recordError("cube3 Draw Error: ");
    // bind Texture
    // Activate and bind the diffuse texture
     glActiveTexture(GL_TEXTURE0);
@@ -158,13 +158,13 @@ void cube::draw(GLuint currentProgram)
     // Activate and bind the normal texture
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_normalTextureId);
-
+    recordError("cube2 Draw Error: ");
     // Activate and bind the specular texture
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeTextureId);
 
 
-
+    recordError("cube1 Draw Error: ");
     // Assuming you have a shader program that expects these textures in specific texture units
     glUniform1i(glGetUniformLocation(currentProgram, "diffuseMap"), 0); // GL_TEXTURE0
     glUniform1i(glGetUniformLocation(currentProgram, "normalMap"), 1);   // GL_TEXTURE1

@@ -28,12 +28,14 @@ layout(std140, binding = 0) uniform LightBlock
 
 };
 
-in vec3 fragPos;      // 片元的世界坐标
-in vec3 normal;       // 法线向量
-in vec3 viewDir;       //视线向量
-in vec4 aOutColor;    //传递的颜色
-in vec2 texCoord;      //UV贴图向量
-in mat3 TBN;          //TBN矩阵
+in VS_OUT {
+vec3 fragPos;      // 片元的世界坐标
+vec4 aOutColor;    //传递的颜色
+vec3 normal;       // 法线向量
+vec2 texCoord;      //UV贴图向量
+vec3 viewDir;       //视线向量
+mat3 TBN;          //TBN矩阵
+}fs_in;
 out vec4 FragColor;    //最终输出颜色
 
 // 贴图采样器
@@ -45,16 +47,19 @@ uniform samplerCube cubeMap;  // 立方体贴图
 // 贴图控制变量
 uniform bool isUseDiffuseMap;   // 是否有漫反射贴图
 uniform bool isUseNormalMap;    // 是否有法线贴图
-uniform bool isUseCubeMap;      // 是否有立方体贴图
+uniform bool isUseCubeMap = false;      // 是否有立方体贴图,默认是没有的，只有在立方体物体并且将该值置为true才有用
 //uniform bool isUseHDRMap;       // 是否有hdr贴图
 
-uniform int numLights;
+uniform int numLights = 0;
 uniform vec4 objectColor; // 包含透明度的颜色
 uniform bool useObjectColor; // 控制使用哪种颜色的标志位
 uniform float metallic;// 金属度
 uniform float roughness;// 粗糙度
 uniform float ior;// 折射率（IOR）
 const float PI = 3.14159265359;
+
+uniform float far_plane;//远裁剪面距离，用于阴影计算
+uniform samplerCube depthMap;
 
 /*法线分布函数，几何遮挡函数，菲涅尔方程是计算反射光的*/
 // 计算法线分布函数（GGX）D估算在受到表面粗糙度的影响下，朝向方向与半程向量一致的微平面的数量。
@@ -102,29 +107,54 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {//F0和金属度有关系，learnopengl写法，保证了金属和非金属的反射比率问题
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);//注意这里用的clamp是为了避免黑点
 }
+//计算阴影
+// float ShadowCalculation(vec3 fragPos)
+// {
+//     if (numLights == 0)
+//     {
+//         return 0.0;
+//     }
+//     // Get vector between fragment position and light position
+//     vec3 fragToLight = fragPos - lights[0].position.xyz;
+//     // Use the light to fragment vector to sample from the depth map
+//     float closestDepth = texture(depthMap, fragToLight).r;
+//     // It is currently in linear range between [0,1]. Re-transform back to original value
+//     closestDepth *= far_plane;
+//     // Now get current linear depth as the length between the fragment and light position
+//     float currentDepth = length(fragToLight);
+//     // Now test for shadows
+//     float bias = 0.05;
+//     float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;
 
+//     return shadow;
+// }
 void main(void)
 {
     vec3 N;
     if (isUseNormalMap == false)
-        N = normalize(normal); // 法线向量
+        N = normalize(fs_in.normal); // 法线向量
     else
     {
     // 从法线贴图中采样法线（范围从[0, 1]映射到[-1, 1]）
-        N = texture(normalMap, texCoord).rgb;
+        N = texture(normalMap, fs_in.texCoord).rgb;
         N = normalize(N * 2.0 - 1.0); // 将法线从切线空间转换到世界空间
 
         // 使用TBN矩阵将法线从切线空间转换到世界空间
-        N = normalize(TBN * N);
+        N = normalize(fs_in.TBN * N);
     }
-    vec3 V = viewDir; // 视线向量（假设相机在原点）
+    vec3 V = fs_in.viewDir; // 视线向量（假设相机在原点）
 
-    vec4 baseColor = useObjectColor ? objectColor : aOutColor;
+    vec4 baseColor = useObjectColor ? objectColor : fs_in.aOutColor;
    // vec4 baseColor = vec4(0.8, 0.5, 0.2, 1.0f);//铜色
     if (isUseDiffuseMap)
     {
-        baseColor *= texture(diffuseMap, texCoord); // Sample the diffuse map
+        baseColor *= texture(diffuseMap, fs_in.texCoord); // Sample the diffuse map
     }
+    if (isUseCubeMap)
+    {
+        baseColor = texture(cubeMap, fs_in.fragPos);
+    }
+
     // 基础反射率
     vec3 F0 = vec3(0.04); // 非金属的基础反射率
     F0 = mix(F0, baseColor.rgb, metallic);//F0用来计算菲涅尔方程
@@ -141,7 +171,7 @@ void main(void)
             L = normalize(-lights[i].direction.xyz);
         } else if (lights[i].type == 0)
         { // 点光源
-            vec3 lightDir = lights[i].position.xyz - fragPos;//计算灯光到片段点的向量，和法线向量点乘出夹角cos值
+            vec3 lightDir = lights[i].position.xyz - fs_in.fragPos;//计算灯光到片段点的向量，和法线向量点乘出夹角cos值
             float distance = max(length(lightDir), 0.001);
             L = normalize(lightDir);
             attenuation = 1.0 / (lights[i].constant +
@@ -151,7 +181,7 @@ void main(void)
         else if (lights[i].type == 2)
         {
             // 聚光灯：结合方向和位置，模拟手电筒效果
-            vec3 lightDir = normalize(lights[i].position.xyz - fragPos); // 片段到光源的方向
+            vec3 lightDir = normalize(lights[i].position.xyz - fs_in.fragPos); // 片段到光源的方向
             vec3 spotDir = normalize(-lights[i].direction.xyz);          // 聚光灯的方向
 
             // 计算当前片段与聚光灯方向的夹角余弦值
@@ -172,7 +202,7 @@ void main(void)
             else
             {
                 // 聚光灯的衰减计算
-                float distance = length(lights[i].position.xyz - fragPos);
+                float distance = length(lights[i].position.xyz - fs_in.fragPos);
                 attenuation = 1.0 / (lights[i].constant +
                                      lights[i].linear * distance +
                                      lights[i].quadratic * distance * distance);
@@ -219,10 +249,12 @@ void main(void)
 
     // 环境光（可选）
     float ao = 1.0;//模拟物体表面由于几何结构复杂（如缝隙、凹陷等）而导致的局部阴影效果，需要ao贴图
-    vec3 ambient = vec3(0.1) * baseColor.rgb * ao;
+    vec3 ambient = vec3(0.001) * baseColor.rgb * ao;
 
     // 最终颜色
-    vec3 color = ambient + Lo;
+    // 计算阴影,目前只应用一个光源的阴影
+   // float shadow = ShadowCalculation(fragPos);
+    vec3 color = ambient + Lo /**(1 - shadow)*/;
     //色调映射使Lo从LDR的值映射为HDR的值
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2));

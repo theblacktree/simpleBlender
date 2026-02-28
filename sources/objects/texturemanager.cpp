@@ -1,5 +1,5 @@
 #include "texturemanager.h"
-
+using namespace std;
 TextureManager::TextureManager()
 {
     m_hdrTexturePair = std::make_unique<std::pair<std::wstring, GLuint>>(L"", 0);
@@ -144,11 +144,115 @@ GLuint TextureManager::load2DAssimpTexture(const std::string &filePath, TextureT
     return texture->getId();
 }
 
-bool TextureManager::loadCubeMap(const std::wstring cubeMapFiles[]) {
-    auto texture = std::make_shared<Texture>(TextureType::CUBE_MAP, GL_TEXTURE_CUBE_MAP);
+void TextureManager::initDotLightDepthCubeMap()
+{
+    GLuint depthCubemap;
+    glGenTextures(1, &depthCubemap);
+    //const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
+    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+    for (GLuint i = 0; i < 6; ++i)
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                     constTextureDefine::SHADOW_WIDTH, constTextureDefine::SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    GLuint depthMapFBO;
+    //glewInit();
+    glGenFramebuffers(1, &depthMapFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    m_depthCubemap = depthCubemap;
+    m_depthMapFBO = depthMapFBO;
+}
+
+bool TextureManager::loadCubeMap(string filePath)
+{
+    glCheckError_("TextureManager",149);
+    auto texture = std::make_shared<Texture>(TextureType::CUBE_MAP, GL_TEXTURE_CUBE_MAP);
+    std::string filePathqiangbi = filePath;//"C:/Qt/Projects/simpleBlender/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug/texImage/qiangbi.jpg";
+    std::string filePathdingbu = filePath;//"C:/Qt/Projects/simpleBlender/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug/texImages/shitou.jpg";
+    std::string filePathdimian = filePath;//"C:/Qt/Projects/simpleBlender/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug/texImages/dimian.jpg";
+    vector<string>cubeMapFiles;
+    cubeMapFiles.emplace_back(filePathqiangbi);
+    cubeMapFiles.emplace_back(filePathqiangbi);
+    cubeMapFiles.emplace_back(filePathqiangbi);//dingbu
+    cubeMapFiles.emplace_back(filePathqiangbi);//dimian
+    cubeMapFiles.emplace_back(filePathqiangbi);
+    cubeMapFiles.emplace_back(filePathqiangbi);
+    glCheckError_("TextureManager",161);
     glGenTextures(1, &(texture->getId()));
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture->getId());
+    glCheckError_("TextureManager",164);
+    // 加载 6 张图片
+    for (unsigned int i = 0; i < cubeMapFiles.size(); ++i)
+    {
+        glCheckError_("TextureManager",168);
+        //const std::filesystem::path fsPath( cubeMapFiles[i] );
+        const std::string& fsPath = cubeMapFiles[i];
+
+        // Open the file as a binary stream
+        std::ifstream file(fsPath, std::ios::binary | std::ios::ate);
+        if (!file.is_open())
+        {
+            std::cerr << "Failed to open file: " << cubeMapFiles[i] << std::endl;
+            return false;
+        }
+        glCheckError_("TextureManager",179);
+        // Get the file size
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        // Read the file into a buffer
+        std::vector<char> buffer(size);
+        if (!file.read(buffer.data(), size))
+        {
+            std::cerr << "Failed to read file: " << cubeMapFiles[i] << std::endl;
+            return false;
+        }
+        glCheckError_("TextureManager",191);
+        // Decode the image from the buffer
+        cv::Mat image = cv::imdecode(cv::Mat(buffer), cv::IMREAD_UNCHANGED);
+        if (image.empty())
+        {
+            std::cerr << "Failed to decode image: " << cubeMapFiles[i] << std::endl;
+        }
+        // 转换为 RGBA 格式
+        if (image.channels() == 3)
+        {
+            cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+        } else if (image.channels() == 4)
+        {
+            cv::cvtColor(image, image, cv::COLOR_BGRA2RGBA);
+        }
+        cv::flip(image, image, 0); // 0 表示绕 x 轴翻转
+        glCheckError_("TextureManager",207);
+        // cv::Mat image = cv::imread(cubeMapFiles[i], cv::IMREAD_UNCHANGED);
+        // if (image.empty()) {
+        //     std::cerr << "Failed to load cube map face: " << cubeMapFiles[i] << std::endl;
+        //     return false;
+        // }
+
+        // if (image.channels() == 3) {
+        //     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+        // } else if (image.channels() == 4) {
+        //     cv::cvtColor(image, image, cv::COLOR_BGRA2RGBA);
+        // }
+
+        GLenum format = (image.channels() == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, image.cols, image.rows, 0, format, GL_UNSIGNED_BYTE, image.data);
+
+        // 设置纹理数据
+        texture->setTextureData(texture->getId(), image.cols, image.rows);
+        glCheckError_("TextureManager",225);
+    }
 
     // 设置纹理参数
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -156,32 +260,14 @@ bool TextureManager::loadCubeMap(const std::wstring cubeMapFiles[]) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // // 加载 6 张图片
-    // for (unsigned int i = 0; i < 6; ++i) {
-    //     cv::Mat image = cv::imread(cubeMapFiles[i], cv::IMREAD_UNCHANGED);
-    //     if (image.empty()) {
-    //         std::cerr << "Failed to load cube map face: " << cubeMapFiles[i] << std::endl;
-    //         return false;
-    //     }
-
-    //     if (image.channels() == 3) {
-    //         cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-    //     } else if (image.channels() == 4) {
-    //         cv::cvtColor(image, image, cv::COLOR_BGRA2RGBA);
-    //     }
-
-    //     GLenum format = (image.channels() == 4) ? GL_RGBA : GL_RGB;
-    //     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, image.cols, image.rows, 0, format, GL_UNSIGNED_BYTE, image.data);
-    // }
-
+    glCheckError_("TextureManager",234);
     // // 保存纹理
-    // m_diffuseTextures["cube_map"] = texture;
+     m_cubeTextures[filePath] = texture;
 
     return true;
 }
 
-std::shared_ptr<Texture> TextureManager::getTexture(const std::wstring& filePath) const {
+std::shared_ptr<Texture> TextureManager::getTexture(const wstring &filePath) const {
     auto it = m_diffuseTextures.find(filePath);
     if (it != m_diffuseTextures.end()) {
         return it->second;
@@ -191,7 +277,16 @@ std::shared_ptr<Texture> TextureManager::getTexture(const std::wstring& filePath
     {
         return itnorm->second;
     }
-    std::cout<<"get texture failed"<<std::endl;
+    return nullptr;
+}
+
+std::shared_ptr<Texture> TextureManager::getcubemapTexture(const std::string &filePath) const
+{
+    auto itcubemap = m_cubeTextures.find(filePath);
+    if (itcubemap != m_cubeTextures.end())
+    {
+        return itcubemap->second;
+    }
     return nullptr;
 }
 
@@ -323,7 +418,7 @@ bool TextureManager::loadHDRMap(const std::wstring &filePath)
 
     return true;
 }
-// 将经纬度坐标转换为立方体面上的坐标
+// 将经纬度坐标转换为立方体面上的坐标，暂时没用到，这是hdr转立方体贴图的代码，待优化
 cv::Vec3f TextureManager::latLongToCubeMap(float theta, float phi) {
     // 计算三维空间中的方向向量
     float x = std::sin(phi) * std::cos(theta);

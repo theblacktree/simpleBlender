@@ -329,12 +329,17 @@ void MainWindow::slotpassUVTextureInfo(const QString &s)
 {   
     wstring filePath = s.toStdWString();
     int index = ui->comboBox_textureType->currentIndex();
-    if (index == 0 || index == 1 || index == 2)
-    {
-        QModelIndex currentIndex = ui->treeView_instance->currentIndex();
-        string currentItemText = m_model->data(currentIndex, Qt::DisplayRole).toString().toStdString();
-        TextureType textureType  = index==0?TextureType::DIFFUSE_MAP:(index == 1?TextureType::NORMAL_MAP:TextureType::CUBE_MAP);
+    QModelIndex currentIndex = ui->treeView_instance->currentIndex();
+    string currentItemText = m_model->data(currentIndex, Qt::DisplayRole).toString().toStdString();
+    TextureType textureType  = index==0?TextureType::DIFFUSE_MAP:(index == 1?TextureType::NORMAL_MAP:TextureType::CUBE_MAP);
+    if (index == 0 || index == 1)
+    {  
         emit sigSetObjectUVTexture(currentItemText, filePath, textureType);
+    }
+    else if (index == 2)//cubeMap
+    {
+        string filePath = s.toStdString();
+        m_glwidget->addCubeMap(currentItemText, filePath, textureType);
     }
     else
     {
